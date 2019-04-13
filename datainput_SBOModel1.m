@@ -1,4 +1,4 @@
-function Data = datainput_SOBModelProject
+function Data = datainput_SOBModelProject1
 %Voltage divider problem input with cartesian inputs
 
 Data.xlow=[-10,-10,-10,-10]; %variable lower bounds
