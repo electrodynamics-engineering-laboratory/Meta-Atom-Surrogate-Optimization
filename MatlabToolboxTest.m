@@ -116,5 +116,5 @@ for ITERATIONS = 1:TestScalingFactor
     end
 end
 %%
-
-save('ToolboxTestResults.mat', 'ResultOutput', 'ErrorLog' );
+OutFile = strcat(char(datetime),'_','ToolboxTestResults.mat');
+save(OutFile, 'ResultOutput', 'ErrorLog' );
