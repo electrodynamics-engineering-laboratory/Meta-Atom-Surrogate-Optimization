@@ -45,7 +45,7 @@ end
 
 %%
 %Initialize ResultsOutput structure array and ErrorLog array
-TestScalingFactor = 1;
+TestScalingFactor = 5;
 StructureLengths = TestScalingFactor*length(Samp_Tech)*length(Init_Design)*length(SBOModels);
 ResultOutput = struct([]);
 ErrorLog = strings(2, StructureLengths);
@@ -56,7 +56,7 @@ for i = 1:StructureLengths
    ResultOutput(j,i).xlow = [];
    ResultOutput(j,i).xup = [];
    ResultOutput(j,i).objfunction = [];
-   ResultOutput(j,i).integer = [];
+   ResultOutput(j,i).integer = []; 
    ResultOutput(j,i).continuous = [];
    ResultOutput(j,i).dim = [];
    ResultOutput(j,i).S = [];
@@ -95,24 +95,6 @@ for ITERATIONS = 1:TestScalingFactor
                 end
             end
         end
-    %{
-    for k = 1:(length(Samp_Tech))
-        for j = 1:(length(Init_Design))
-            for i = 1:(length(SBOModels))
-                %display(SBOModels(i))
-                try %Enter try catch loop to prevent tests that fail from ending run of the program
-                    SurrogateModelModule_v1(char(data_file(2)), Num_Iterations, char(SBOModels(i)), char(Samp_Tech(k)), char(Init_Design(j)), Num_Start_Pnts, Start_Point);
-                    TempRes = load("Results.mat");
-                    ResultOutput(2,ITERATIONS*i*j*k) = TempRes.Data;
-                    ErrorLog(2,ITERATIONS*i*j*k) = strcat(string(Samp_Tech(k)), "-", string(Init_Design(j)), "-", string(SBOModels(i)), ": ", "OK");
-                catch ME
-                    ErrorString = strcat(string(Samp_Tech(k)), "-", string(Init_Design(j)), "-", string(SBOModels(i)), ": ", string(ME.message));
-                    ErrorLog(2,ITERATIONS*i*j*k) = ErrorString;
-                end
-            end
-        end
-    end
-    %}
     end
 end
 %%
