@@ -45,7 +45,7 @@ end
 
 %%
 %Initialize ResultsOutput structure array and ErrorLog array
-TestScalingFactor = 1;
+TestScalingFactor = 5;
 StructureLengths = TestScalingFactor*length(Samp_Tech)*length(Init_Design)*length(SBOModels);
 ResultOutput = struct([]);
 ErrorLog = strings(2, StructureLengths);
@@ -56,7 +56,7 @@ for i = 1:StructureLengths
    ResultOutput(j,i).xlow = [];
    ResultOutput(j,i).xup = [];
    ResultOutput(j,i).objfunction = [];
-   ResultOutput(j,i).integer = [];
+   ResultOutput(j,i).integer = []; 
    ResultOutput(j,i).continuous = [];
    ResultOutput(j,i).dim = [];
    ResultOutput(j,i).S = [];
@@ -75,6 +75,7 @@ for i = 1:StructureLengths
     end
 end
 %%
+<<<<<<< HEAD
 AskForInput = 0; %If 1, check for user input before proceeding to next model
 BreakOut = 0;
 
@@ -92,6 +93,8 @@ MaxSBOModels = length(SBOModels);
 MinFileChoice = 1;
 MaxFileChoice = length(data_file);
 
+=======
+>>>>>>> preparing-for-symposium
 for ITERATIONS = 1:TestScalingFactor
     for k = MinSamplingTechnique:MaxSamplingTechnique
         for j = MinDesignChoice:MaxDesignChoice
@@ -113,5 +116,5 @@ for ITERATIONS = 1:TestScalingFactor
     end
 end
 %%
-
-save('ToolboxTestResults.mat', 'ResultOutput', 'ErrorLog' );
+OutFile = strcat(char(datetime),'_','ToolboxTestResults.mat');
+save(OutFile, 'ResultOutput', 'ErrorLog' );
