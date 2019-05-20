@@ -45,8 +45,23 @@ end
 
 %%
 %Initialize ResultsOutput structure array and ErrorLog array
+
+%Variables to allow choice of model, design, and sampling technique to be
+%used for testing purposes
+MinDesignChoice = 1;
+MaxDesignChoice = length(Init_Design);
+
+MinSamplingTechnique = 1;
+MaxSamplingTechnique = length(Samp_Tech);
+
+MinSBOModels = 1;
+MaxSBOModels = length(SBOModels);
+
+MinFileChoice = 1;
+MaxFileChoice = length(data_file);
+
 TestScalingFactor = 5;
-StructureLengths = TestScalingFactor*length(Samp_Tech)*length(Init_Design)*length(SBOModels);
+StructureLengths = TestScalingFactor*(MaxDesignChoice - MinDesignChoice - 1)*(MaxSamplingTechnique - MinSamplingTechnique - 1)*(MaxSBOModels - MinSBOModels - 1);
 ResultOutput = struct([]);
 ErrorLog = strings(2, StructureLengths);
 
@@ -75,20 +90,6 @@ for i = 1:StructureLengths
     end
 end
 %%
-
-%Variables to allow choice of model, design, and sampling technique to be
-%used for testing purposes
-MinDesignChoice = 1;
-MaxDesignChoice = length(Init_Design);
-
-MinSamplingTechnique = 1;
-MaxSamplingTechnique = length(Samp_Tech);
-
-MinSBOModels = 1;
-MaxSBOModels = length(SBOModels);
-
-MinFileChoice = 1;
-MaxFileChoice = length(data_file);
 
 for ITERATIONS = 1:TestScalingFactor
     for k = MinSamplingTechnique:MaxSamplingTechnique
