@@ -75,8 +75,6 @@ for i = 1:StructureLengths
     end
 end
 %%
-AskForInput = 0; %If 1, check for user input before proceeding to next model
-BreakOut = 0;
 for ITERATIONS = 1:TestScalingFactor
     for k = 1:(length(Samp_Tech))
         for j = 1:(length(Init_Design))
