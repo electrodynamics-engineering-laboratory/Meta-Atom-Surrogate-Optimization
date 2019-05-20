@@ -75,9 +75,6 @@ for i = 1:StructureLengths
     end
 end
 %%
-<<<<<<< HEAD
-AskForInput = 0; %If 1, check for user input before proceeding to next model
-BreakOut = 0;
 
 %Variables to allow choice of model, design, and sampling technique to be
 %used for testing purposes
@@ -93,8 +90,6 @@ MaxSBOModels = length(SBOModels);
 MinFileChoice = 1;
 MaxFileChoice = length(data_file);
 
-=======
->>>>>>> preparing-for-symposium
 for ITERATIONS = 1:TestScalingFactor
     for k = MinSamplingTechnique:MaxSamplingTechnique
         for j = MinDesignChoice:MaxDesignChoice
