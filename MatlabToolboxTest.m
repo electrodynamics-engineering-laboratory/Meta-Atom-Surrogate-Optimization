@@ -77,11 +77,26 @@ end
 %%
 AskForInput = 0; %If 1, check for user input before proceeding to next model
 BreakOut = 0;
+
+%Variables to allow choice of model, design, and sampling technique to be
+%used for testing purposes
+MinDesignChoice = 1;
+MaxDesignChoice = length(Init_Design);
+
+MinSamplingTechnique = 1;
+MaxSamplingTechnique = length(Samp_Tech);
+
+MinSBOModels = 1;
+MaxSBOModels = length(SBOModels);
+
+MinFileChoice = 1;
+MaxFileChoice = length(data_file);
+
 for ITERATIONS = 1:TestScalingFactor
-    for k = 1:(length(Samp_Tech))
-        for j = 1:(length(Init_Design))
-            for i = 1:(length(SBOModels))
-                for fileChoice = 1:length(data_file)
+    for k = MinSamplingTechnique:MaxSamplingTechnique
+        for j = MinDesignChoice:MaxDesignChoice
+            for i = MinSBOModels:MaxSBOModels
+                for fileChoice = MinFileChoice:MaxFileChoice
                     %display(SBOModels(i))
                     try %Enter try catch loop to prevent tests that fail from ending run of the program
                         SurrogateModelModule_v1(char(data_file(fileChoice)), Num_Iterations, char(SBOModels(i)), char(Samp_Tech(k)), char(Init_Design(j)), Num_Start_Pnts, Start_Point);
@@ -95,24 +110,6 @@ for ITERATIONS = 1:TestScalingFactor
                 end
             end
         end
-    %{
-    for k = 1:(length(Samp_Tech))
-        for j = 1:(length(Init_Design))
-            for i = 1:(length(SBOModels))
-                %display(SBOModels(i))
-                try %Enter try catch loop to prevent tests that fail from ending run of the program
-                    SurrogateModelModule_v1(char(data_file(2)), Num_Iterations, char(SBOModels(i)), char(Samp_Tech(k)), char(Init_Design(j)), Num_Start_Pnts, Start_Point);
-                    TempRes = load("Results.mat");
-                    ResultOutput(2,ITERATIONS*i*j*k) = TempRes.Data;
-                    ErrorLog(2,ITERATIONS*i*j*k) = strcat(string(Samp_Tech(k)), "-", string(Init_Design(j)), "-", string(SBOModels(i)), ": ", "OK");
-                catch ME
-                    ErrorString = strcat(string(Samp_Tech(k)), "-", string(Init_Design(j)), "-", string(SBOModels(i)), ": ", string(ME.message));
-                    ErrorLog(2,ITERATIONS*i*j*k) = ErrorString;
-                end
-            end
-        end
-    end
-    %}
     end
 end
 %%
