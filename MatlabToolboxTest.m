@@ -48,8 +48,9 @@ end
 
 %Variables to allow choice of model, design, and sampling technique to be
 %used for testing purposes
+
 MinDesignChoice = 1;
-MaxDesignChoice = length(Init_Design);
+MaxDesignChoice = 1; %length(Init_Design)
 
 MinSamplingTechnique = 1;
 MaxSamplingTechnique = length(Samp_Tech);
@@ -61,7 +62,7 @@ MinFileChoice = 1;
 MaxFileChoice = length(data_file);
 
 TestScalingFactor = 5;
-StructureLengths = TestScalingFactor*(MaxDesignChoice - MinDesignChoice - 1)*(MaxSamplingTechnique - MinSamplingTechnique - 1)*(MaxSBOModels - MinSBOModels - 1);
+StructureLengths = TestScalingFactor*(MaxDesignChoice - MinDesignChoice + 1)*(MaxSamplingTechnique - MinSamplingTechnique + 1)*(MaxSBOModels - MinSBOModels + 1);
 ResultOutput = struct([]);
 ErrorLog = strings(2, StructureLengths);
 
@@ -112,5 +113,8 @@ for ITERATIONS = 1:TestScalingFactor
     end
 end
 %%
-OutFile = strcat(char(datetime),'_','ToolboxTestResults.mat');
+TestName = "LHS_Test-";
+DateString = char(datetime);
+DateString(DateString == ' ') = '_';
+OutFile = strcat(TestName,DateString,'_','ToolboxTestResults.mat');
 save(OutFile, 'ResultOutput', 'ErrorLog' );
