@@ -113,8 +113,9 @@ for ITERATIONS = 1:TestScalingFactor
     end
 end
 %%
-TestName = "LHS_Test-";
+TestName = Init_Design(MinDesignChoice);
 DateString = char(datetime);
 DateString(DateString == ' ') = '_';
+DateString(DateString == ':') = '-';
 OutFile = strcat(TestName,DateString,'_','ToolboxTestResults.mat');
 save(OutFile, 'ResultOutput', 'ErrorLog' );
