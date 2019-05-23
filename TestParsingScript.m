@@ -1,4 +1,4 @@
-clear;
+clear; close all;
 
 %Get all file names to parse out .mat files containing data
 FileStructure = dir;
@@ -18,15 +18,13 @@ Figures = [];
 
 for i = 1:length(FileNames)
     load(FileNames(i));
-    ErrorLog = [ErrorLog(ErrorLog ~= "")];
-    ErrorLogCartesian = rmmissing([ErrorLog(1,:)]);
-    ErrorLogPolar = rmmissing([ErrorLog(2,:)]);
-    ErrorLog = [ErrorLogCartesian; ErrorLogPolar];
-    keyboard()
+    ErrorLog = rmmissing([ErrorLog(1,:)]);
+    ErrorLog= ErrorLog(ErrorLog ~= "");
+    %ErrorLogPolar = rmmissing([ErrorLog(2,:)]);
+    %ErrorLog = [ErrorLogCartesian ErrorLogPolar];
     Figures = [Figures figure()];
+    title(strcat("Figure ",string(i)))
+    pause(0.5)
     
-    clear ResultOutput ErrorLog;
 end
-
-
 

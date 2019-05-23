@@ -59,7 +59,7 @@ MinSBOModels = 1;
 MaxSBOModels = length(SBOModels);
 
 MinFileChoice = 1;
-MaxFileChoice = length(data_file);
+MaxFileChoice = 1;
 
 TestScalingFactor = 5;
 StructureLengths = TestScalingFactor*(MaxDesignChoice - MinDesignChoice + 1)*(MaxSamplingTechnique - MinSamplingTechnique + 1)*(MaxSBOModels - MinSBOModels + 1);
@@ -102,9 +102,9 @@ for ITERATIONS = 1:TestScalingFactor
                         SurrogateModelModule_v1(char(data_file(fileChoice)), Num_Iterations, char(SBOModels(i)), char(Samp_Tech(k)), char(Init_Design(j)), Num_Start_Pnts, Start_Point);
                         TempRes = load("Results.mat");
                         ResultOutput(fileChoice,ITERATIONS*i*j*k) = TempRes.Data;
-                        ErrorLog(fileChoice,ITERATIONS*i*j*k) = strcat(string(Samp_Tech(k)), "-", string(Init_Design(j)), "-", string(SBOModels(i)), ": ", "OK");
+                        ErrorLog(fileChoice,ITERATIONS*i*j*k) = strcat(string(Samp_Tech(k)), ":", string(Init_Design(j)), ":", string(SBOModels(i)), ": ", "OK");
                     catch ME
-                        ErrorString = strcat(string(Samp_Tech(k)), "-", string(Init_Design(j)), "-", string(SBOModels(i)), ": ", string(ME.message));
+                        ErrorString = strcat(string(Samp_Tech(k)), ":", string(Init_Design(j)), ":", string(SBOModels(i)), ":", string(ME.message));
                         ErrorLog(fileChoice,ITERATIONS*i*j*k) = ErrorString;
                     end
                 end
