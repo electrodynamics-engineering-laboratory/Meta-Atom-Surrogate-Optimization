@@ -113,7 +113,7 @@ for ITERATIONS = 1:TestScalingFactor
     end
 end
 %%
-OutputLocation = "LO
+OutputLocation = "TestingOutputs";
 TestName = Init_Design(MinDesignChoice);
 DateString = char(datetime);
 DateString(DateString == ' ') = '_';
