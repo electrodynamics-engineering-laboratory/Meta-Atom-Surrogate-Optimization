@@ -50,7 +50,7 @@ end
 %used for testing purposes
 
 MinDesignChoice = 1;
-MaxDesignChoice = 1; %length(Init_Design)
+MaxDesignChoice = length(Init_Design); %length(Init_Design)
 
 MinSamplingTechnique = 1;
 MaxSamplingTechnique = length(Samp_Tech);
@@ -68,7 +68,7 @@ ErrorLog = strings(2, StructureLengths);
 
 %Expand ResultOutput array to prevent excessive slowdown when running tests
 for i = 1:StructureLengths
-    for j = 1:2
+    for j = 1:(MaxFileChoice - MinFileChoice + 1)
    ResultOutput(j,i).xlow = [];
    ResultOutput(j,i).xup = [];
    ResultOutput(j,i).objfunction = [];
@@ -114,7 +114,7 @@ for ITERATIONS = 1:TestScalingFactor
 end
 %%
 OutputLocation = "TestingOutputs";
-TestName = Init_Design(MinDesignChoice);
+TestName = "ALL_";
 DateString = char(datetime);
 DateString(DateString == ' ') = '_';
 DateString(DateString == ':') = '-';
