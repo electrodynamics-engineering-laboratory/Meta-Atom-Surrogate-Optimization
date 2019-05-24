@@ -34,7 +34,7 @@ if(exist('ToolboxTestInputs.mat') ~= 2)
     SBOModels = ["KRIGexp0" "KRIGexp1" "KRIGexp2" "KRIGgexp0" "KRIGgexp1" "KRIGgexp2" "KRIGgauss0" "KRIGgauss1" "KRIGgauss2" ...
         "KRIGlin0" "KRIGlin1" "KRIGlin2" "KRIGspline0" "KRIGspline1" "KRIGspline2" "KRIGsphere0" "KRIGsphere1" "KRIGsphere2" ...
         "KRIGcub0" "KRIGcub1" "KRIGcub2"];
-    Samp_Tech = ["CAND", "SURFmin", "EImaxmin", "SCOREmin"];
+    Samp_Tech = ["CAND", "SURFmin", "EImax", "SCOREmin"];
     Init_Design = ["LHS", "SLHD", "CORNER", "SPACEFIL"];
     Num_Start_Pnts = 50;
     Start_Point = randn(10,4);
