@@ -35,7 +35,7 @@ if(exist('ToolboxTestInputs.mat') ~= 2)
         "KRIGlin0" "KRIGlin1" "KRIGlin2" "KRIGspline0" "KRIGspline1" "KRIGspline2" "KRIGsphere0" "KRIGsphere1" "KRIGsphere2" ...
         "KRIGcub0" "KRIGcub1" "KRIGcub2"];
     Samp_Tech = ["CAND", "SURFmin", "EImax", "SCOREmin"];
-    Init_Design = ["LHS", "SLHD", "CORNER", "SPACEFIL"];
+    Init_Design = ["LHS", "SLHD", "SPACEFIL"];
     Num_Start_Pnts = 50;
     Start_Point = randn(10,4);
     save('ToolboxTestInputs.mat', 'data_file','Num_Iterations','SBOModels','Samp_Tech','Init_Design','Num_Start_Pnts','Start_Point');
@@ -113,10 +113,10 @@ for ITERATIONS = 1:TestScalingFactor
     end
 end
 %%
-OutputLocation = "TestingOutputs";
+OutputLocation = "TestingOutputs/";
 TestName = "ALL_";
 DateString = char(datetime);
 DateString(DateString == ' ') = '_';
 DateString(DateString == ':') = '-';
-OutFile = strcat(TestName,DateString,'_','ToolboxTestResults.mat');
+OutFile = strcat(OutputLocation,TestName,DateString,'_','ToolboxTestResults.mat');
 save(OutFile, 'ResultOutput', 'ErrorLog' );
