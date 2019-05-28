@@ -61,7 +61,7 @@ MaxSBOModels = length(SBOModels);
 MinFileChoice = 1;
 MaxFileChoice = 1;
 
-TestScalingFactor = 5;
+TestScalingFactor = 10;
 StructureLengths = TestScalingFactor*(MaxDesignChoice - MinDesignChoice + 1)*(MaxSamplingTechnique - MinSamplingTechnique + 1)*(MaxSBOModels - MinSBOModels + 1);
 ResultOutput = struct([]);
 ErrorLog = strings(2, StructureLengths);
@@ -88,6 +88,7 @@ for i = 1:StructureLengths
    ResultOutput(j,i).NumberStartPoints = [];
    ResultOutput(j,i).StartingPoint = [];
    ResultOutput(j,i).TotalTime = [];
+   ErrorLog(j, i) = "";
     end
 end
 %%
@@ -120,3 +121,4 @@ DateString(DateString == ' ') = '_';
 DateString(DateString == ':') = '-';
 OutFile = strcat(OutputLocation,TestName,DateString,'_','ToolboxTestResults.mat');
 save(OutFile, 'ResultOutput', 'ErrorLog' );
+system('shutdown -s');
