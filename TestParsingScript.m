@@ -50,8 +50,9 @@ for i = 1:length(FileNames)
     Figures = [Figures figure('units','normalized','outerposition', [0 0 1 1])];
     subplot(2,2,1)
     bar([SuccessVal, FailVal]);
-    title(strcat("Overall Figure: File ",string(i)," (Missing Data Included)"))
-    xticklabels(["Success", "Fail"])
+    title(strcat("Overall Figure: File ",string(i)," (Missing Data Included)"));
+    xticklabels(["Success", "Fail"]);
+    xtickangle(90);
     pause(0.5)
     
     SBOModels = ["KRIGexp0" "KRIGexp1" "KRIGexp2" "KRIGgexp0" "KRIGgexp1" "KRIGgexp2" "KRIGgauss0" "KRIGgauss1" "KRIGgauss2" "KRIGlin0" "KRIGlin1" "KRIGlin2" "KRIGspline0" "KRIGspline1" "KRIGspline2" "KRIGsphere0" "KRIGsphere1" "KRIGsphere2" "KRIGcub0" "KRIGcub1" "KRIGcub2"];

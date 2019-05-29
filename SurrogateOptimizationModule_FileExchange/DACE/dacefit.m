@@ -99,8 +99,7 @@ if  nargin > 5
 
     if isinf(f)
         dmodel=NaN; %altered Oct 19, 2011
-        return %altered Oct 19, 2011
-   
+        return %altered
 %     error('Bad parameter region.  Try increasing  upb') %original impl., altered Oct 19, 2011
     end 
 
