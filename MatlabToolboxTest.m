@@ -63,7 +63,8 @@ MaxSBOModels = length(SBOModels);
 MinFileChoice = 1;
 MaxFileChoice = 1;
 
-TestScalingFactor = 1;
+TestScalingFactor = 5;
+
 StructureLengths = TestScalingFactor*(MaxDesignChoice - MinDesignChoice + 1)*(MaxSamplingTechnique - MinSamplingTechnique + 1)*(MaxSBOModels - MinSBOModels + 1);
 ResultOutput = struct([]);
 ErrorLog = strings(2, StructureLengths);
