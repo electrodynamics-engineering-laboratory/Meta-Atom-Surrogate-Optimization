@@ -49,21 +49,19 @@ end
 %Variables to allow choice of model, design, and sampling technique to be
 %used for testing purposes
 
-Num_Iterations = 100;
-
 MinDesignChoice = 1;
-MaxDesignChoice = length(Init_Design); %length(Init_Design)
+MaxDesignChoice = 1; %length(Init_Design)
 
-MinSamplingTechnique = 1;
-MaxSamplingTechnique = length(Samp_Tech);
+MinSamplingTechnique = 3;
+MaxSamplingTechnique = 3;
 
 MinSBOModels = 1;
-MaxSBOModels = length(SBOModels);
+MaxSBOModels = 1;
 
 MinFileChoice = 1;
 MaxFileChoice = 1;
 
-TestScalingFactor = 5;
+TestScalingFactor = 1;
 
 StructureLengths = TestScalingFactor*(MaxDesignChoice - MinDesignChoice + 1)*(MaxSamplingTechnique - MinSamplingTechnique + 1)*(MaxSBOModels - MinSBOModels + 1);
 ResultOutput = struct([]);
@@ -110,6 +108,7 @@ for ITERATIONS = 1:TestScalingFactor
                     catch ME
                         ErrorString = strcat(string(Samp_Tech(k)), ":", string(Init_Design(j)), ":", string(SBOModels(i)), ":", string(ME.message));
                         ErrorLog(fileChoice,ITERATIONS*i*j*k) = ErrorString;
+                        display(ErrorString)
                     end
                 end
             end
