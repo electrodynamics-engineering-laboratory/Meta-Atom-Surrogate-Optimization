@@ -27,6 +27,9 @@ while size(Data.S,1) < maxeval %do until stopping criterion met
     Data.LowerTheta=ones(1,Data.dim).*-3; %lower bounds on model parameter theta
     [Data.dist,Data.ij]=distanceupdate(Data); %compute pairwise distances between all points
     optionsEI=gaoptimset('PopulationSize',10,'Display','off'); %set options for genetic algorithm (GA) that computes model parameters theta
+    %optionsEI=optimoptions('ga', 'PopulationSize',10,'Display','off'); %
+    %This is the recommended manner to do this, however needs to Global
+    %Optimization Toolbox
     [Data.Theta,~] = ga(@(x)likelihood_new(Data,x),Data.dim,[],[],[],[],Data.LowerTheta,Data.UpperTheta,[],optionsEI); %optimizaes the theta's with GA
     [~,Data.Psi,Data.U]=likelihood_new(Data,Data.Theta); %uses optimized theta's and computes the parameters needed for computing expected improvement
     myEI=@(x) -log10(ExpectedImprovement(Data,x)) ; %negative log expected improvement function to be minimized
