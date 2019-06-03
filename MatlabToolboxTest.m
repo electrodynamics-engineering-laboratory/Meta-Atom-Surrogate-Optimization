@@ -29,14 +29,14 @@ Dr. Mohamed Salem
 
 %%
 if(exist('ToolboxTestInputs.mat') ~= 2)
-    data_file = ["datainput_SBOModel1" "datainput_SBOModel2", "datainput_Powell24", "datainput_Levy20"];
+    data_file = ["datainput_SBOModel1" "datainput_SBOModel2"];
     Num_Iterations = 200;
     SBOModels = ["KRIGexp0" "KRIGexp1" "KRIGexp2" "KRIGgexp0" "KRIGgexp1" "KRIGgexp2" "KRIGgauss0" "KRIGgauss1" "KRIGgauss2" ...
         "KRIGlin0" "KRIGlin1" "KRIGlin2" "KRIGspline0" "KRIGspline1" "KRIGspline2" "KRIGsphere0" "KRIGsphere1" "KRIGsphere2" ...
         "KRIGcub0" "KRIGcub1" "KRIGcub2"];
-    Samp_Tech = ["CAND", "SURFmin", "SCOREmin", "EImax"];
+    Samp_Tech = ["CAND", "SURFmin", "EImax", "SCOREmin"];
     Init_Design = ["LHS", "SLHD", "SPACEFIL"];
-    Num_Start_Pnts = 10;
+    Num_Start_Pnts = 50;
     Start_Point = randn(10,4);
     save('ToolboxTestInputs.mat', 'data_file','Num_Iterations','SBOModels','Samp_Tech','Init_Design','Num_Start_Pnts','Start_Point');
 else
@@ -53,19 +53,18 @@ MinDesignChoice = 1;
 MaxDesignChoice = length(Init_Design); %length(Init_Design)
 
 MinSamplingTechnique = 1;
-MaxSamplingTechnique = (length(Samp_Tech)-1); %Removing EImax due to instability without Global Optimization Toolbox
+MaxSamplingTechnique = length(Samp_Tech);
 
 MinSBOModels = 1;
 MaxSBOModels = length(SBOModels);
 
 MinFileChoice = 1;
-MaxFileChoice = length(data_file);
+MaxFileChoice = 1;
 
 TestScalingFactor = 5;
-
 StructureLengths = TestScalingFactor*(MaxDesignChoice - MinDesignChoice + 1)*(MaxSamplingTechnique - MinSamplingTechnique + 1)*(MaxSBOModels - MinSBOModels + 1);
 ResultOutput = struct([]);
-ErrorLog = strings(length(data_file), StructureLengths);
+ErrorLog = strings(2, StructureLengths);
 
 %Expand ResultOutput array to prevent excessive slowdown when running tests
 for i = 1:StructureLengths
@@ -108,14 +107,12 @@ for ITERATIONS = 1:TestScalingFactor
                     catch ME
                         ErrorString = strcat(string(Samp_Tech(k)), ":", string(Init_Design(j)), ":", string(SBOModels(i)), ":", string(ME.message));
                         ErrorLog(fileChoice,ITERATIONS*i*j*k) = ErrorString;
-                        display(ErrorString)
                     end
                 end
             end
         end
     end
 end
-
 %%
 OutputLocation = "TestingOutputs/";
 TestName = "ALL_";
@@ -124,6 +121,4 @@ DateString(DateString == ' ') = '_';
 DateString(DateString == ':') = '-';
 OutFile = strcat(OutputLocation,TestName,DateString,'_','ToolboxTestResults.mat');
 save(OutFile, 'ResultOutput', 'ErrorLog' );
-if ispc
-    system('shutdown -s');
-end
+system('shutdown -s');

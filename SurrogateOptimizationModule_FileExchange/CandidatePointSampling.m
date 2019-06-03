@@ -109,7 +109,7 @@ while size(Data.S,1) < maxeval %stopping criterion is max. number allowed functi
 
     %recompute model parameters
     [lambda,gamma,dmodel,mmodel,beta, w_m] = FitSurrogateModel(Data, Surrogate);
-    fprintf('Number of function evaluation: %4.0f; Best feasible function value: %f\n', size(Data.S,1), Data.fbest)
+    fprintf('Number of function evaluation: %4.0f; Best feasible function value: %f\n', size(Data.S,1),Data.fbest)
     save('Results','Data');
 end
 
