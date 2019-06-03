@@ -29,19 +29,20 @@ Dr. Mohamed Salem
 
 %%
 if(exist('ToolboxTestInputs.mat') ~= 2)
-    data_file = ["datainput_SBOModel1" "datainput_SBOModel2"];
-    Num_Iterations = 200;
-    SBOModels = ["KRIGexp0" "KRIGexp1" "KRIGexp2" "KRIGgexp0" "KRIGgexp1" "KRIGgexp2" "KRIGgauss0" "KRIGgauss1" "KRIGgauss2" ...
-        "KRIGlin0" "KRIGlin1" "KRIGlin2" "KRIGspline0" "KRIGspline1" "KRIGspline2" "KRIGsphere0" "KRIGsphere1" "KRIGsphere2" ...
-        "KRIGcub0" "KRIGcub1" "KRIGcub2"];
-    Samp_Tech = ["CAND", "SURFmin", "EImax", "SCOREmin"];
-    Init_Design = ["LHS", "SLHD", "SPACEFIL"];
-    Num_Start_Pnts = 50;
     Start_Point = randn(10,4);
-    save('ToolboxTestInputs.mat', 'data_file','Num_Iterations','SBOModels','Samp_Tech','Init_Design','Num_Start_Pnts','Start_Point');
+    save('ToolboxTestInputs.mat', 'Start_Point');
 else
     load('ToolboxTestInputs.mat');
 end
+
+data_file = ["datainput_SBOModel1" "datainput_SBOModel2", "datainput_DixonPrice15", "datainput_Shekel10"];
+Num_Iterations = 200;
+SBOModels = ["KRIGexp0" "KRIGexp1" "KRIGexp2" "KRIGgexp0" "KRIGgexp1" "KRIGgexp2" "KRIGgauss0" "KRIGgauss1" "KRIGgauss2" ...
+    "KRIGlin0" "KRIGlin1" "KRIGlin2" "KRIGspline0" "KRIGspline1" "KRIGspline2" "KRIGsphere0" "KRIGsphere1" "KRIGsphere2" ...
+    "KRIGcub0" "KRIGcub1" "KRIGcub2"];
+Samp_Tech = ["CAND", "SURFmin", "EImax", "SCOREmin"];
+Init_Design = ["LHS", "SLHD", "SPACEFIL"];
+Num_Start_Pnts = 50;
 
 %%
 %Initialize ResultsOutput structure array and ErrorLog array
@@ -59,7 +60,7 @@ MinSBOModels = 1;
 MaxSBOModels = length(SBOModels);
 
 MinFileChoice = 1;
-MaxFileChoice = 1;
+MaxFileChoice = length(data_file);
 
 TestScalingFactor = 5;
 StructureLengths = TestScalingFactor*(MaxDesignChoice - MinDesignChoice + 1)*(MaxSamplingTechnique - MinSamplingTechnique + 1)*(MaxSBOModels - MinSBOModels + 1);
