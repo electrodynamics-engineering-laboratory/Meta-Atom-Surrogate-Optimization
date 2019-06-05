@@ -65,32 +65,33 @@ MaxFileChoice = length(data_file);
 TestScalingFactor = 5;
 StructureLengths = TestScalingFactor*(MaxDesignChoice - MinDesignChoice + 1)*(MaxSamplingTechnique - MinSamplingTechnique + 1)*(MaxSBOModels - MinSBOModels + 1);
 ResultOutput = struct([]);
-ErrorLog = strings(2, StructureLengths);
+ErrorLog = struct();
 
 %Expand ResultOutput array to prevent excessive slowdown when running tests
-for i = 1:StructureLengths
-    for j = 1:(MaxFileChoice - MinFileChoice + 1)
-   ResultOutput(j,i).xlow = [];
-   ResultOutput(j,i).xup = [];
-   ResultOutput(j,i).objfunction = [];
-   ResultOutput(j,i).integer = []; 
-   ResultOutput(j,i).continuous = [];
-   ResultOutput(j,i).dim = [];
-   ResultOutput(j,i).S = [];
-   ResultOutput(j,i).Y = [];
-   ResultOutput(j,i).fevaltime = [];
-   ResultOutput(j,i).fbest = [];
-   ResultOutput(j,i).xbest = [];
-   ResultOutput(j,i).Ymed = [];
-   ResultOutput(j,i).Problem = [];
-   ResultOutput(j,i).SurrogateModel = [];
-   ResultOutput(j,i).SamplingTechnique = [];
-   ResultOutput(j,i).InitialDesign = [];
-   ResultOutput(j,i).NumberStartPoints = [];
-   ResultOutput(j,i).StartingPoint = [];
-   ResultOutput(j,i).TotalTime = [];
-   ErrorLog(j, i) = "";
+
+for j = 1:(MaxFileChoice - MinFileChoice + 1)
+    for i = 1:StructureLengths
+    ResultOutput(j,i).xlow = [];
+    ResultOutput(j,i).xup = [];
+    ResultOutput(j,i).objfunction = [];
+    ResultOutput(j,i).integer = []; 
+    ResultOutput(j,i).continuous = [];
+    ResultOutput(j,i).dim = [];
+    ResultOutput(j,i).S = [];
+    ResultOutput(j,i).Y = [];
+    ResultOutput(j,i).fevaltime = [];
+    ResultOutput(j,i).fbest = [];
+    ResultOutput(j,i).xbest = [];
+    ResultOutput(j,i).Ymed = [];
+    ResultOutput(j,i).Problem = [];
+    ResultOutput(j,i).SurrogateModel = [];
+    ResultOutput(j,i).SamplingTechnique = [];
+    ResultOutput(j,i).InitialDesign = [];
+    ResultOutput(j,i).NumberStartPoints = [];
+    ResultOutput(j,i).StartingPoint = [];
+    ResultOutput(j,i).TotalTime = [];
     end
+    eval(strcat("ErrorLog.",data_file(j)," = [];"));
 end
 %%
 
@@ -99,15 +100,16 @@ for ITERATIONS = 1:TestScalingFactor
         for j = MinDesignChoice:MaxDesignChoice
             for i = MinSBOModels:MaxSBOModels
                 for fileChoice = MinFileChoice:MaxFileChoice
-                    %display(SBOModels(i))
+                    InternalErrorStringFront = strcat(string(Samp_Tech(k)), ":", string(Init_Design(j)), ":", string(SBOModels(i)), ":");
                     try %Enter try catch loop to prevent tests that fail from ending run of the program
                         SurrogateModelModule_v1(char(data_file(fileChoice)), Num_Iterations, char(SBOModels(i)), char(Samp_Tech(k)), char(Init_Design(j)), Num_Start_Pnts, Start_Point);
                         TempRes = load("Results.mat");
                         ResultOutput(fileChoice,ITERATIONS*i*j*k) = TempRes.Data;
-                        ErrorLog(fileChoice,ITERATIONS*i*j*k) = strcat(string(Samp_Tech(k)), ":", string(Init_Design(j)), ":", string(SBOModels(i)), ": ", "OK");
+                        InternalSuccessString = strcat(InternalErrorStringFront, "OK");
+                        eval(strcat("ErrorLog.",data_file(fileChoice),"=[","ErrorLog.",data_file(fileChoice)," ", "InternalSuccessString" ,"];"));                     
                     catch ME
-                        ErrorString = strcat(string(Samp_Tech(k)), ":", string(Init_Design(j)), ":", string(SBOModels(i)), ":", string(ME.message));
-                        ErrorLog(fileChoice,ITERATIONS*i*j*k) = ErrorString;
+                        InternalFailString = strcat(InternalErrorStringFront,string(ME.message));
+                        eval(strcat("ErrorLog.",data_file(fileChoice),"=[","ErrorLog.",data_file(fileChoice)," ", "InternalFailString" ,"];"));
                     end
                 end
             end
@@ -122,4 +124,7 @@ DateString(DateString == ' ') = '_';
 DateString(DateString == ':') = '-';
 OutFile = strcat(OutputLocation,TestName,DateString,'_','ToolboxTestResults.mat');
 save(OutFile, 'ResultOutput', 'ErrorLog' );
-system('shutdown -s');
+if ispc
+    pause(60);
+    system('shutdown -s');
+end

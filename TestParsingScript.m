@@ -20,7 +20,6 @@ for i = 1:length(FileNames)
     load(FileNames(i));
     
     OriginalErrorLogLength = length(ErrorLog); %Save initial length for calculations
-    
     ErrorLog = rmmissing([ErrorLog(1,:)]); %Remove <missing> entries from log for parsing
     ErrorLog = ErrorLog(ErrorLog ~= ""); %Remove "" entries from log for parsing
     
@@ -143,3 +142,4 @@ for i = 1:length(FileNames)
 end
 
 
+close all
