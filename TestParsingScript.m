@@ -19,34 +19,47 @@ Figures = [];
 for i = 1:length(FileNames)
     load(FileNames(i));
     
-    OriginalErrorLogLength = length(ErrorLog); %Save initial length for calculations
-    ErrorLog = rmmissing([ErrorLog(1,:)]); %Remove <missing> entries from log for parsing
-    ErrorLog = ErrorLog(ErrorLog ~= ""); %Remove "" entries from log for parsing
+    ErrorLogFieldNames = fieldnames(ErrorLog);
+    Temp = string(zeros(1,length(ErrorLogFieldNames)));
+    for j = 1:length(ErrorLogFieldNames)
+        Temp(j) = string(ErrorLogFieldNames{j});
+    end
     
-    ZerosString = string(zeros(1,length(ErrorLog))); 
+    ErrorLogLength = length(eval(strcat("ErrorLog.", ErrorLogFieldNames(1)))); %Save initial length for calculations
+    
+    ZerosString = string(zeros(1,ErrorLogLength)); 
     ParsedLog.SamplingTechnique = ZerosString;
     ParsedLog.Models = ZerosString;
     ParsedLog.InitialDesign = ZerosString;
     ParsedLog.Status = ZerosString;
+    ParsedLog.FileName = ZerosString;
     clear ZerosString;
 
-    for j = 1:length(ErrorLog)
-        InternalTempString = char(ErrorLog(j));
-        ColonLocations = find(InternalTempString == ':');
-        ParsedLog.SamplingTechnique(j) = string(InternalTempString(1:(ColonLocations(1)-1)));
-        ParsedLog.InitialDesign(j) = string(InternalTempString((ColonLocations(1)+1):(ColonLocations(2)-1)));
-        ParsedLog.Models(j) = string(InternalTempString((ColonLocations(2)+1):(ColonLocations(3)-1)));
-        ParsedLog.Status(j) = string(InternalTempString((ColonLocations(3)+1):end));
+    ErrorLogFieldNames = Temp;
+    clear Temp;
+    
+    for j = 1:length(ErrorLogFieldNames)
+        TempArray = eval(strcat("[ErrorLog.",ErrorLogFieldNames(j),"]"));
+        for k = 1:length(TempArray)
+           InternalTempString = char(TempArray(k));
+           ColonLocations = find(InternalTempString == ':');
+           ParsedLog.SamplingTechnique(k) = string(InternalTempString(1:(ColonLocations(1)-1)));
+           ParsedLog.InitialDesign(k) = string(InternalTempString((ColonLocations(1)+1):ColonLocations(2)-1));
+           ParsedLog.Models(k) = string(InternalTempString((ColonLocations(2)+1):(ColonLocations(3)-1)));
+           ParsedLog.Status(k) = string(InternalTempString((ColonLocations(3)+1):end));
+           ParsedLog.FileName(k) = ErrorLogFieldNames(j)
+        end
     end
     
     SuccessVal = 0;
     FailVal = 0;
-    for k = 1:length(ErrorLog)
-       SuccessVal = SuccessVal + strcmp(ParsedLog.Status(k), " OK");
+    for k = 1:length(ParsedLog.Status)
+       SuccessVal = SuccessVal + (strcmp(ParsedLog.Status(k), "OK") || strcmp(ParsedLog.Status(k), " OK")) ;
+       FailVal = FailVal + ~(strcmp(ParsedLog.Status(k),"OK") || strcmp(ParsedLog.Status(k), " OK"));
     end
-    FailVal = OriginalErrorLogLength - SuccessVal;
     
     Figures = [Figures figure('units','normalized','outerposition', [0 0 1 1])];
+    title(FileNames(i));
     subplot(2,2,1)
     bar(transpose([SuccessVal 0]));
     hold on
@@ -55,7 +68,7 @@ for i = 1:length(FileNames)
     title("SBO Overall Succeses/Failures (Missing Data Included)");
     xticklabels(["Success", "Fail"]);
     legend(["Success", "Failure"]);
-    pause(0.5)
+    pause(0.25)
     
     SBOModels = ["KRIGexp0" "KRIGexp1" "KRIGexp2" "KRIGgexp0" "KRIGgexp1" "KRIGgexp2" "KRIGgauss0" "KRIGgauss1" "KRIGgauss2" "KRIGlin0" "KRIGlin1" "KRIGlin2" "KRIGspline0" "KRIGspline1" "KRIGspline2" "KRIGsphere0" "KRIGsphere1" "KRIGsphere2" "KRIGcub0" "KRIGcub1" "KRIGcub2"];
     Samp_Tech = ["CAND", "SURFmin", "EImax", "SCOREmin"];
@@ -65,10 +78,10 @@ for i = 1:length(FileNames)
     ModelsFailure = zeros(1,length(SBOModels));
     
     for j = 1:length(SBOModels)
-        for k = 1:length(ErrorLog)
+        for k = 1:ErrorLogLength
             if(strcmp(ParsedLog.Models(k), SBOModels(j)))
-                ModelsSuccess(j) = ModelsSuccess(j) + strcmp(ParsedLog.Status(k), " OK");
-                ModelsFailure(j) = ModelsFailure(j) + ~strcmp(ParsedLog.Status(k), " OK");
+                ModelsSuccess(j) = ModelsSuccess(j) + (strcmp(ParsedLog.Status(k), "OK") || strcmp(ParsedLog.Status(k), " OK"));
+                ModelsFailure(j) = ModelsFailure(j) + ~(strcmp(ParsedLog.Status(k), "OK") || strcmp(ParsedLog.Status(k), " OK"));
             end
         end
     end
@@ -85,16 +98,16 @@ for i = 1:length(FileNames)
     else
         ylim([0 (max(ModelsSuccess)+5)]);
     end
-    pause(0.5);
+    pause(0.25);
     
     SampleSuccess = zeros(1,length(Samp_Tech));
     SampleFailure = zeros(1,length(Samp_Tech));
     
     for j = 1:length(Samp_Tech)
-       for k = 1:length(ErrorLog)
+       for k = 1:ErrorLogLength
             if(strcmp(ParsedLog.SamplingTechnique(k), Samp_Tech(j)))
-                SampleSuccess(j) = SampleSuccess(j) + strcmp(ParsedLog.Status(k), " OK");
-                SampleFailure(j) = SampleFailure(j) + ~strcmp(ParsedLog.Status(k), " OK");
+                SampleSuccess(j) = SampleSuccess(j) + (strcmp(ParsedLog.Status(k), "OK") || strcmp(ParsedLog.Status(k), " OK"));
+                SampleFailure(j) = SampleFailure(j) + ~(strcmp(ParsedLog.Status(k), "OK") || strcmp(ParsedLog.Status(k), " OK"));
             end
         end
     end
@@ -111,16 +124,16 @@ for i = 1:length(FileNames)
     else
         ylim([0 (max(SampleSuccess)+5)]);
     end
-    pause(0.5);
+    pause(0.25);
     
     InitialDesignSuccess = zeros(1,length(Init_Design));
     InitialDesignFailure = zeros(1,length(Init_Design));
     
     for j = 1:length(Init_Design)
-        for k = 1:length(ErrorLog)
+        for k = 1:ErrorLogLength
             if(strcmp(ParsedLog.InitialDesign(k), Init_Design(j)))
-                InitialDesignSuccess(j) = InitialDesignSuccess(j) + strcmp(ParsedLog.Status(k), " OK");
-                InitialDesignFailure(j) = InitialDesignFailure(j) + ~strcmp(ParsedLog.Status(k), " OK");
+                InitialDesignSuccess(j) = InitialDesignSuccess(j) + (strcmp(ParsedLog.Status(k), "OK") || strcmp(ParsedLog.Status(k), " OK"));
+                InitialDesignFailure(j) = InitialDesignFailure(j) + ~(strcmp(ParsedLog.Status(k), "OK") || strcmp(ParsedLog.Status(k), " OK"));
             end
         end
     end
@@ -137,9 +150,6 @@ for i = 1:length(FileNames)
     else
         ylim([0 (max(InitialDesignSuccess)+5)]);
     end
-    pause(0.5);
+    pause(0.25);
 
 end
-
-
-close all
