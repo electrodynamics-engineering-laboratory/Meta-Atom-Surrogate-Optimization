@@ -15,8 +15,9 @@ end
 
 FileNames = [FileNames(FileNames ~= "0")];
 Figures = [];
+idealFontSize = 18;
 
-for i = 1:length(FileNames)
+for i = length(FileNames):length(FileNames)
     load(FileNames(i));
     
     ErrorLogFieldNames = fieldnames(ErrorLog);
@@ -47,7 +48,7 @@ for i = 1:length(FileNames)
            ParsedLog.InitialDesign(k) = string(InternalTempString((ColonLocations(1)+1):ColonLocations(2)-1));
            ParsedLog.Models(k) = string(InternalTempString((ColonLocations(2)+1):(ColonLocations(3)-1)));
            ParsedLog.Status(k) = string(InternalTempString((ColonLocations(3)+1):end));
-           ParsedLog.FileName(k) = ErrorLogFieldNames(j)
+           ParsedLog.FileName(k) = ErrorLogFieldNames(j);
         end
     end
     
@@ -65,9 +66,12 @@ for i = 1:length(FileNames)
     hold on
     bar([0 FailVal])
     hold off
-    title("SBO Overall Succeses/Failures (Missing Data Included)");
+    title("SBO Overall Succeses/Failures");
     xticklabels(["Success", "Fail"]);
-    legend(["Success", "Failure"]);
+    AxesLegend = legend(["Success", "Failure"]);
+    AxesLegend.FontSize = 12;
+    curAxes = gca;
+    curAxes.FontSize = idealFontSize;
     pause(0.25)
     
     SBOModels = ["KRIGexp0" "KRIGexp1" "KRIGexp2" "KRIGgexp0" "KRIGgexp1" "KRIGgexp2" "KRIGgauss0" "KRIGgauss1" "KRIGgauss2" "KRIGlin0" "KRIGlin1" "KRIGlin2" "KRIGspline0" "KRIGspline1" "KRIGspline2" "KRIGsphere0" "KRIGsphere1" "KRIGsphere2" "KRIGcub0" "KRIGcub1" "KRIGcub2"];
@@ -88,16 +92,19 @@ for i = 1:length(FileNames)
     
     subplot(2,2,2)
     bar(transpose([ModelsSuccess; ModelsFailure]));
-    title("SBO Models Success/Failure (Missing Data Excluded)");
+    title("SBO Models Success/Failure");
     xticks(1:length(SBOModels));
     xticklabels(SBOModels);
     xtickangle(90);
-    legend(["Success", "Failure"]);
+    AxesLegend = legend(["Success", "Failure"]);
+    AxesLegend.FontSize = 12;
     if(max(ModelsFailure) > max(ModelsSuccess))
-        ylim([0 (max(ModelsFailure)+5)]);
+        ylim([0 (max(ModelsFailure)+max(ModelsFailure)/2)]);
     else
-        ylim([0 (max(ModelsSuccess)+5)]);
+        ylim([0 (max(ModelsSuccess)+max(ModelsSuccess)/2)]);
     end
+    curAxes = gca;
+    curAxes.FontSize = idealFontSize
     pause(0.25);
     
     SampleSuccess = zeros(1,length(Samp_Tech));
@@ -114,16 +121,18 @@ for i = 1:length(FileNames)
     
     subplot(2,2,3);
     bar(transpose([SampleSuccess; SampleFailure]));
-    title("Sampling Technique Success/Failure (Missing Data Excluded)");
+    title("Sampling Technique Success/Failure");
     xticks(1:length(Samp_Tech));
     xticklabels(Samp_Tech);
-    xtickangle(90);
-    legend(["Success", "Failure"]);
+    AxesLegend = legend(["Success", "Failure"]);
+    AxesLegend.FontSize = 12;
     if(max(SampleFailure) > max(SampleSuccess))
-        ylim([0 (max(SampleFailure)+5)]);
+        ylim([0 (max(SampleFailure)+max(SampleFailure)/2)]);
     else
-        ylim([0 (max(SampleSuccess)+5)]);
+        ylim([0 (max(SampleSuccess)+max(SampleSuccess)/2)]);
     end
+    curAxes = gca;
+    curAxes.FontSize = idealFontSize
     pause(0.25);
     
     InitialDesignSuccess = zeros(1,length(Init_Design));
@@ -140,16 +149,18 @@ for i = 1:length(FileNames)
     
     subplot(2,2,4)
     bar(transpose([InitialDesignSuccess; InitialDesignFailure]));
-    title("Initial Design Success/Failure  (Missing Data Excluded)");
+    title("Initial Design Success/Failure");
     xticks(1:length(Init_Design));
     xticklabels(Init_Design);
-    xtickangle(90);
-    legend(["Success", "Failure"]);
+    AxesLegend = legend(["Success", "Failure"]);
+    AxesLegend.FontSize = 12;
     if(max(InitialDesignFailure) > max(InitialDesignSuccess))
-        ylim([0 (max(InitialDesignFailure)+5)]);
+        ylim([0 (max(InitialDesignFailure)+max(InitialDesignFailure)/2)]);
     else
-        ylim([0 (max(InitialDesignSuccess)+5)]);
+        ylim([0 (max(InitialDesignSuccess)+max(InitialDesignSuccess)/2)]);
     end
+    curAxes = gca;
+    curAxes.FontSize = idealFontSize
     pause(0.25);
 
 end

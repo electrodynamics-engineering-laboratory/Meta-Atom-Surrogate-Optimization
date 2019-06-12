@@ -45,7 +45,6 @@ Init_Design = ["LHS", "SLHD", "SPACEFIL"];
 Num_Start_Pnts = 50;
 
 %%
-%Initialize ResultsOutput structure array and ErrorLog array
 
 %Variables to allow choice of model, design, and sampling technique to be
 %used for testing purposes
@@ -55,43 +54,26 @@ MaxDesignChoice = length(Init_Design); %length(Init_Design)
 
 MinSamplingTechnique = 1;
 MaxSamplingTechnique = length(Samp_Tech);
-
 MinSBOModels = 1;
 MaxSBOModels = length(SBOModels);
 
 MinFileChoice = 1;
 MaxFileChoice = length(data_file);
 
-TestScalingFactor = 5;
+%Initialize ResultsOutput structure array and ErrorLog array
+
+TestScalingFactor = 3;
 StructureLengths = TestScalingFactor*(MaxDesignChoice - MinDesignChoice + 1)*(MaxSamplingTechnique - MinSamplingTechnique + 1)*(MaxSBOModels - MinSBOModels + 1);
-ResultOutput = struct([]);
+ResultOutput = struct();
 ErrorLog = struct();
 
 %Expand ResultOutput array to prevent excessive slowdown when running tests
-
-for j = 1:(MaxFileChoice - MinFileChoice + 1)
-    for i = 1:StructureLengths
-    ResultOutput(j,i).xlow = [];
-    ResultOutput(j,i).xup = [];
-    ResultOutput(j,i).objfunction = [];
-    ResultOutput(j,i).integer = []; 
-    ResultOutput(j,i).continuous = [];
-    ResultOutput(j,i).dim = [];
-    ResultOutput(j,i).S = [];
-    ResultOutput(j,i).Y = [];
-    ResultOutput(j,i).fevaltime = [];
-    ResultOutput(j,i).fbest = [];
-    ResultOutput(j,i).xbest = [];
-    ResultOutput(j,i).Ymed = [];
-    ResultOutput(j,i).Problem = [];
-    ResultOutput(j,i).SurrogateModel = [];
-    ResultOutput(j,i).SamplingTechnique = [];
-    ResultOutput(j,i).InitialDesign = [];
-    ResultOutput(j,i).NumberStartPoints = [];
-    ResultOutput(j,i).StartingPoint = [];
-    ResultOutput(j,i).TotalTime = [];
-    end
-    eval(strcat("ErrorLog.",data_file(j)," = [];"));
+BlankStruct = struct('xlow',[],'xup',[],'objfunction',[],'integer',[],'continuous',[], 'dim',[], ...
+    'S', [], 'Y', [], 'fevaltime', [], 'fbest', [], 'xbest', [],'Ymed',[],'Problem',[],'SurrogateModel', ...
+    [],'SamplingTechnique', [], 'InitialDesign',[],'NumberStartPoints',[],'StartingPoint',[], 'TotalTime', []);
+for j = MinFileChoice:MaxFileChoice
+    eval(strcat("ResultOutput.",data_file(j),"= BlankStruct;"))
+    eval(strcat("ErrorLog.",data_file(j)," = [];")); %Create blank arrays in ErrorLog fields for each particular data file
 end
 %%
 
@@ -104,11 +86,11 @@ for ITERATIONS = 1:TestScalingFactor
                     try %Enter try catch loop to prevent tests that fail from ending run of the program
                         SurrogateModelModule_v1(char(data_file(fileChoice)), Num_Iterations, char(SBOModels(i)), char(Samp_Tech(k)), char(Init_Design(j)), Num_Start_Pnts, Start_Point);
                         TempRes = load("Results.mat");
-                        ResultOutput(fileChoice,ITERATIONS*i*j*k) = TempRes.Data;
-                        InternalSuccessString = strcat(InternalErrorStringFront, "OK");
+                        eval(strcat("ResultOutput.",data_file(fileChoice),"= [ResultOutput.", data_file(fileChoice)," TempRes.Data];")) %Save Results.mat data to ResultOutput array of structs      
+                        InternalSuccessString = strcat(InternalErrorStringFront, "OK"); %Create error log success string and append to error log
                         eval(strcat("ErrorLog.",data_file(fileChoice),"=[","ErrorLog.",data_file(fileChoice)," ", "InternalSuccessString" ,"];"));                     
                     catch ME
-                        InternalFailString = strcat(InternalErrorStringFront,string(ME.message));
+                        InternalFailString = strcat(InternalErrorStringFront,string(ME.message)); %Create error log message and append to log
                         eval(strcat("ErrorLog.",data_file(fileChoice),"=[","ErrorLog.",data_file(fileChoice)," ", "InternalFailString" ,"];"));
                     end
                 end
