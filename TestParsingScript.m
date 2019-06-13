@@ -1,7 +1,18 @@
-clear; close all;
+function Figures = ParseErrorLogs(OutputFileLocation)
+%{
+    Function takes in a directory and then creates graphics based on the
+    error logs located within those .mat files to display relevant
+    information in regards to the runs done.
+
+    Inputs:     OutputFileLocation - A string of the directory path
+    Outputs:    Figures - An array of figure handles for any graphs created
+%}
+if nargin < 1
+    OutputFileLocation = "TestingOutputs";
+end
 
 %Get all file names to parse out .mat files containing data
-FileStructure = dir("TestingOutputs");
+FileStructure = dir(OutputFileLocation);
 FileStructureLength = length(FileStructure);
 FileNames = string(zeros(1,FileStructureLength));
 DesiredExtension = '.mat';
@@ -19,15 +30,15 @@ idealFontSize = 18;
 
 for i = length(FileNames):length(FileNames)
     load(FileNames(i));
-    
+
     ErrorLogFieldNames = fieldnames(ErrorLog);
     Temp = string(zeros(1,length(ErrorLogFieldNames)));
     for j = 1:length(ErrorLogFieldNames)
         Temp(j) = string(ErrorLogFieldNames{j});
     end
-    
+
     ErrorLogLength = length(eval(strcat("ErrorLog.", ErrorLogFieldNames(1)))); %Save initial length for calculations
-    
+
     ZerosString = string(zeros(1,ErrorLogLength)); 
     ParsedLog.SamplingTechnique = ZerosString;
     ParsedLog.Models = ZerosString;
@@ -38,7 +49,7 @@ for i = length(FileNames):length(FileNames)
 
     ErrorLogFieldNames = Temp;
     clear Temp;
-    
+
     for j = 1:length(ErrorLogFieldNames)
         TempArray = eval(strcat("[ErrorLog.",ErrorLogFieldNames(j),"]"));
         for k = 1:length(TempArray)
@@ -51,14 +62,14 @@ for i = length(FileNames):length(FileNames)
            ParsedLog.FileName(k) = ErrorLogFieldNames(j);
         end
     end
-    
+
     SuccessVal = 0;
     FailVal = 0;
     for k = 1:length(ParsedLog.Status)
        SuccessVal = SuccessVal + (strcmp(ParsedLog.Status(k), "OK") || strcmp(ParsedLog.Status(k), " OK")) ;
        FailVal = FailVal + ~(strcmp(ParsedLog.Status(k),"OK") || strcmp(ParsedLog.Status(k), " OK"));
     end
-    
+
     Figures = [Figures figure('units','normalized','outerposition', [0 0 1 1])];
     title(FileNames(i));
     subplot(2,2,1)
@@ -73,14 +84,14 @@ for i = length(FileNames):length(FileNames)
     curAxes = gca;
     curAxes.FontSize = idealFontSize;
     pause(0.25)
-    
+
     SBOModels = ["KRIGexp0" "KRIGexp1" "KRIGexp2" "KRIGgexp0" "KRIGgexp1" "KRIGgexp2" "KRIGgauss0" "KRIGgauss1" "KRIGgauss2" "KRIGlin0" "KRIGlin1" "KRIGlin2" "KRIGspline0" "KRIGspline1" "KRIGspline2" "KRIGsphere0" "KRIGsphere1" "KRIGsphere2" "KRIGcub0" "KRIGcub1" "KRIGcub2"];
     Samp_Tech = ["CAND", "SURFmin", "EImax", "SCOREmin"];
     Init_Design = ["LHS", "SLHD", "SPACEFIL"];
 
     ModelsSuccess = zeros(1,length(SBOModels));
     ModelsFailure = zeros(1,length(SBOModels));
-    
+
     for j = 1:length(SBOModels)
         for k = 1:ErrorLogLength
             if(strcmp(ParsedLog.Models(k), SBOModels(j)))
@@ -89,7 +100,7 @@ for i = length(FileNames):length(FileNames)
             end
         end
     end
-    
+
     subplot(2,2,2)
     bar(transpose([ModelsSuccess; ModelsFailure]));
     title("SBO Models Success/Failure");
@@ -106,10 +117,10 @@ for i = length(FileNames):length(FileNames)
     curAxes = gca;
     curAxes.FontSize = idealFontSize
     pause(0.25);
-    
+
     SampleSuccess = zeros(1,length(Samp_Tech));
     SampleFailure = zeros(1,length(Samp_Tech));
-    
+
     for j = 1:length(Samp_Tech)
        for k = 1:ErrorLogLength
             if(strcmp(ParsedLog.SamplingTechnique(k), Samp_Tech(j)))
@@ -118,7 +129,7 @@ for i = length(FileNames):length(FileNames)
             end
         end
     end
-    
+
     subplot(2,2,3);
     bar(transpose([SampleSuccess; SampleFailure]));
     title("Sampling Technique Success/Failure");
@@ -134,10 +145,10 @@ for i = length(FileNames):length(FileNames)
     curAxes = gca;
     curAxes.FontSize = idealFontSize
     pause(0.25);
-    
+
     InitialDesignSuccess = zeros(1,length(Init_Design));
     InitialDesignFailure = zeros(1,length(Init_Design));
-    
+
     for j = 1:length(Init_Design)
         for k = 1:ErrorLogLength
             if(strcmp(ParsedLog.InitialDesign(k), Init_Design(j)))
@@ -146,7 +157,7 @@ for i = length(FileNames):length(FileNames)
             end
         end
     end
-    
+
     subplot(2,2,4)
     bar(transpose([InitialDesignSuccess; InitialDesignFailure]));
     title("Initial Design Success/Failure");
@@ -164,3 +175,5 @@ for i = length(FileNames):length(FileNames)
     pause(0.25);
 
 end
+
+end %End Function

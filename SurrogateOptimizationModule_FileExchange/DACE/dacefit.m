@@ -38,7 +38,6 @@ function  [dmodel, perf] = dacefit(S, Y, regr, corr, theta0, lob, upb)
 
 % hbn@imm.dtu.dk  
 % Last update September 3, 2002
-
 % Check design points
 [m n] = size(S);  % number of design sites and their dimension
 sY = size(Y);
@@ -60,15 +59,17 @@ else  % given theta
 end
 
 % Normalize data
-mS = mean(S);   sS = std(S);
+mS = mean(S);   sS = std(S); %Find the mean and standard deviation to normalize
 mY = mean(Y);   sY = std(Y);
 % 02.08.27: Check for 'missing dimension'
 j = find(sS == 0);
 if  ~isempty(j),  sS(j) = 1; end
 j = find(sY == 0);
 if  ~isempty(j),  sY(j) = 1; end
-S = (S - repmat(mS,m,1)) ./ repmat(sS,m,1);
-Y = (Y - repmat(mY,m,1)) ./ repmat(sY,m,1);
+S = (S - repmat(mS,m,1)) ./ repmat(sS,m,1); %Takes S and subtracts the mean of each column S 
+                                            %and divides each column by its
+                                            %standard deviation
+Y = (Y - repmat(mY,m,1)) ./ repmat(sY,m,1); %Does the same as above for Y
 
 % Calculate distances D between points
 mzmax = m*(m-1) / 2;        % number of non-zero distances

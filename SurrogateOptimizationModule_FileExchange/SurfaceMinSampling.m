@@ -125,8 +125,10 @@ while size(Data.S,1) < maxeval
     % values
     MedY=median(Data.Y);
     Data.Ymed(Data.Y>MedY)=MedY;
-    %recompute model parameters    
+    %recompute model parameters
+    
     [lambda,gamma,dmodel,mmodel,beta, w_m] = FitSurrogateModel(Data, Surrogate);
+    display(Data.S)
     fprintf('Number of function evaluation: %4.0f; Best feasible function value: %f\n', size(Data.S,1),Data.fbest)
     save('Results','Data');
 end
