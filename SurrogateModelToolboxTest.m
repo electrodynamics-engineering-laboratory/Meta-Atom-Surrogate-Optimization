@@ -91,7 +91,8 @@ for ITERATIONS = 1:TestScalingFactor
                         TempRes = load("Results.mat");
                         eval(strcat("ResultOutput.",data_file(fileChoice),"= [ResultOutput.", data_file(fileChoice)," TempRes.Data];")) %Save Results.mat data to ResultOutput array of structs      
                         InternalSuccessString = strcat(InternalErrorStringFront, "OK"); %Create error log success string and append to error log
-                        eval(strcat("ErrorLog.",data_file(fileChoice),"=[","ErrorLog.",data_file(fileChoice)," ", "InternalSuccessString" ,"];"));                     
+                        eval(strcat("ErrorLog.",data_file(fileChoice),"=[","ErrorLog.",data_file(fileChoice)," ", "InternalSuccessString" ,"];"));
+                        delete("Results.mat")
                     catch ME
                         InternalFailString = strcat(InternalErrorStringFront,string(ME.message)); %Create error log message and append to log
                         eval(strcat("ErrorLog.",data_file(fileChoice),"=[","ErrorLog.",data_file(fileChoice)," ", "InternalFailString" ,"];"));
