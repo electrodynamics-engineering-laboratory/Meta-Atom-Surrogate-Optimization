@@ -1,8 +1,8 @@
 function Data = datainput_SOBModelProject2
 %Voltage divider problem with polar coordinates
 
-Data.xlow=[0,0,0,0]; %variable lower bounds in cartesian to be converted to polar
-Data.xup=[10,2*pi,10,2*pi]; %variable upper bounds in cartesian to be converted to polar
+Data.xlow=[0,0,0,0]; %variable lower bounds in polar
+Data.xup=[10,2*pi,10,2*pi]; %variable upper bounds in polar
 %objective function
 Data.objfunction= @(x)x(:,3)*exp(i*x(:,4))/(x(:,3)*exp(i*x(:,4) + x(:,1)*exp(i*x(:,2))));
 Data.integer=[]; %indices of integer variables
