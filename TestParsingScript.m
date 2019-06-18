@@ -69,7 +69,7 @@ for i = length(FileNames):length(FileNames)
        SuccessVal = SuccessVal + (strcmp(ParsedLog.Status(k), "OK") || strcmp(ParsedLog.Status(k), " OK")) ;
        FailVal = FailVal + ~(strcmp(ParsedLog.Status(k),"OK") || strcmp(ParsedLog.Status(k), " OK"));
     end
-
+    Figures = [Figures ParseResultsOutput(ResultOutput)];
     Figures = [Figures figure('units','normalized','outerposition', [0 0 1 1])];
     title(FileNames(i));
     subplot(2,2,1)

@@ -28,6 +28,7 @@ Dr. Mohamed Salem
 %}
 
 %%
+%If not arguments are given, load the necessary values from a previous run
 if nargin == 0
     if(exist('ToolboxTestInputs.mat') ~= 2)
         Start_Point = randn(10,4);
