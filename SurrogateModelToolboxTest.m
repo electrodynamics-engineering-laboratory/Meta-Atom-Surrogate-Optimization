@@ -37,7 +37,7 @@ if nargin == 0
         load('ToolboxTestInputs.mat');
     end
 
-    data_file = ["datainput_SBOModel1" "datainput_SBOModel2", "datainput_DixonPrice15", "datainput_Shekel10"];
+    data_file = ["datainput_SBOModel1" "datainput_SBOModel2", "datainput_Schoen_10_4_3", "datainput_Shekel10"];
     Num_Iterations = 200;
     SBOModels = ["KRIGexp0" "KRIGexp1" "KRIGexp2" "KRIGgexp0" "KRIGgexp1" "KRIGgexp2" "KRIGgauss0" "KRIGgauss1" "KRIGgauss2" ...
         "KRIGlin0" "KRIGlin1" "KRIGlin2" "KRIGspline0" "KRIGspline1" "KRIGspline2" "KRIGsphere0" "KRIGsphere1" "KRIGsphere2" ...
@@ -65,7 +65,7 @@ MaxFileChoice = length(data_file);
 
 %Initialize ResultsOutput structure array and ErrorLog array
 
-TestScalingFactor = 3;
+TestScalingFactor = 1;
 StructureLengths = TestScalingFactor*(MaxDesignChoice - MinDesignChoice + 1)*(MaxSamplingTechnique - MinSamplingTechnique + 1)*(MaxSBOModels - MinSBOModels + 1);
 ResultOutput = struct();
 ErrorLog = struct();
