@@ -45,6 +45,8 @@ if nargin == 0
     Samp_Tech = ["CAND", "SURFmin", "EImax", "SCOREmin"];
     Init_Design = ["LHS", "SLHD", "SPACEFIL"];
     Num_Start_Pnts = 50;
+    
+    clear Start_Point Num_Start_Pnts
 end
 
 %%
@@ -87,7 +89,7 @@ for ITERATIONS = 1:TestScalingFactor
                 for fileChoice = MinFileChoice:MaxFileChoice
                     InternalErrorStringFront = strcat(string(Samp_Tech(k)), ":", string(Init_Design(j)), ":", string(SBOModels(i)), ":");
                     try %Enter try catch loop to prevent tests that fail from ending run of the program
-                        SurrogateModelModule_v1(char(data_file(fileChoice)), Num_Iterations, char(SBOModels(i)), char(Samp_Tech(k)), char(Init_Design(j)), Num_Start_Pnts, Start_Point);
+                        SurrogateModelModule_v1(char(data_file(fileChoice)), Num_Iterations, char(SBOModels(i)), char(Samp_Tech(k)), char(Init_Design(j)))%, Num_Start_Pnts, Start_Point);
                         TempRes = load("Results.mat"); %Load Results file from SurrogateModelModule_v1 
                         eval(strcat("ResultOutput.",data_file(fileChoice),"= [ResultOutput.", data_file(fileChoice)," TempRes.Data];")) %Save Results.mat data to ResultOutput array of structs      
                         InternalSuccessString = strcat(InternalErrorStringFront, "OK"); %Create error log success string and append to error log
@@ -104,7 +106,7 @@ for ITERATIONS = 1:TestScalingFactor
 end
 %%
 OutputLocation = "TestingOutputs/";
-TestName = "ALL_";
+TestName = "NOSTRT_";
 DateString = char(datetime);
 DateString(DateString == ' ') = '_';
 DateString(DateString == ':') = '-';
