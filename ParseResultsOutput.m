@@ -1,4 +1,4 @@
-function Figures = ParseResultsOutput(Data)
+function Figures = ParseResultsOutput(Data, GivenFileName)
 %{
     Function takes in an array of structures from the
     SurrogateModelToolboxTest function and generates appropriate figures to
@@ -17,7 +17,9 @@ function Figures = ParseResultsOutput(Data)
     fbestString = 'fbest';
     xbestString = 'xbest';
     totalTimeString = 'TotalTime';
-    
+    if nargin < 2
+       GivenFileName = "UNKNOWN"; 
+    end
     Figures = [];
     DataFileNames = fieldnames(Data);
     TempArray = [];
@@ -44,7 +46,7 @@ function Figures = ParseResultsOutput(Data)
        end
        %Generate new figure for subplots
        if( ~isempty(ParsedData.TotalTime) || ~isempty(ParsedData.fbest) || ~isempty(ParsedData.xbest))
-            Figures = [Figures figure('units','normalized','outerposition', [0 0 1 1])];
+            Figures = [Figures figure('Name', GivenFileName ,'units','normalized','outerposition', [0 0 1 1])];
        end
        
        %Generate subplots of data
