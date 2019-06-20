@@ -37,7 +37,7 @@ if nargin == 0
         load('ToolboxTestInputs.mat');
     end
 
-    data_file = ["datainput_SBOModel1" "datainput_SBOModel2", "datainput_Schoen_10_4_3", "datainput_Shekel10"];
+    data_file = ["datainput_SBOModel1" "datainput_SBOModel2", "datainput_Branin", "datainput_Shubert"];
     Num_Iterations = 200;
     SBOModels = ["KRIGexp0" "KRIGexp1" "KRIGexp2" "KRIGgexp0" "KRIGgexp1" "KRIGgexp2" "KRIGgauss0" "KRIGgauss1" "KRIGgauss2" ...
         "KRIGlin0" "KRIGlin1" "KRIGlin2" "KRIGspline0" "KRIGspline1" "KRIGspline2" "KRIGsphere0" "KRIGsphere1" "KRIGsphere2" ...
@@ -98,6 +98,9 @@ for ITERATIONS = 1:TestScalingFactor
                     catch ME
                         InternalFailString = strcat(InternalErrorStringFront,string(ME.message)); %Create error log message and append to log
                         eval(strcat("ErrorLog.",data_file(fileChoice),"=[","ErrorLog.",data_file(fileChoice)," ", "InternalFailString" ,"];"));
+                        if exist("Results.mat")
+                            delete("Results.mat")
+                        end
                     end
                 end
             end
