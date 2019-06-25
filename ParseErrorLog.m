@@ -98,7 +98,7 @@ for i = 1:length(DataFileNames)
     AxesLegend.FontSize = 12;
     curAxes = gca;
     curAxes.FontSize = idealFontSize;
-    pause(0.25)
+    pause(0.4)
 
     subplot(2,2,2)
     bar(transpose([ModelsSuccess; ModelsFailure]));
@@ -115,7 +115,7 @@ for i = 1:length(DataFileNames)
     end
     curAxes = gca;
     curAxes.FontSize = idealFontSize;
-    pause(0.25);
+    pause(0.4);
 
     subplot(2,2,3);
     bar(transpose([SampleSuccess; SampleFailure]));
@@ -131,7 +131,7 @@ for i = 1:length(DataFileNames)
     end
     curAxes = gca;
     curAxes.FontSize = idealFontSize;
-    pause(0.25);
+    pause(0.4);
 
     subplot(2,2,4)
     bar(transpose([InitialDesignSuccess; InitialDesignFailure]));
@@ -147,7 +147,7 @@ for i = 1:length(DataFileNames)
     end
     curAxes = gca;
     curAxes.FontSize = idealFontSize;
-    pause(0.25);
+    pause(0.4);
 
     end
 

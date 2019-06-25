@@ -73,9 +73,11 @@ ResultOutput = struct();
 ErrorLog = struct();
 
 %Expand ResultOutput array to prevent excessive slowdown when running tests
+
 BlankStruct = struct('xlow',[],'xup',[],'objfunction',[],'integer',[],'continuous',[], 'dim',[], ...
-    'S', [], 'Y', [], 'fevaltime', [], 'fbest', [], 'xbest', [],'Ymed',[],'Problem',[],'SurrogateModel', ...
-    [],'SamplingTechnique', [], 'InitialDesign',[],'NumberStartPoints',[],'StartingPoint',[], 'TotalTime', []);
+'S', [], 'Y', [], 'fevaltime', [], 'fbest', [], 'xbest', [],'Ymed',[],'Problem',[],'SurrogateModel', ...
+[],'SamplingTechnique', [], 'InitialDesign',[],'NumberStartPoints',[],'StartingPoint',[], 'TotalTime', []);
+
 for j = MinFileChoice:MaxFileChoice
     eval(strcat("ResultOutput.",data_file(j),"= BlankStruct;"))
     eval(strcat("ErrorLog.",data_file(j)," = [];")); %Create blank arrays in ErrorLog fields for each particular data file
@@ -89,8 +91,15 @@ for ITERATIONS = 1:TestScalingFactor
                 for fileChoice = MinFileChoice:MaxFileChoice
                     InternalErrorStringFront = strcat(string(Samp_Tech(k)), ":", string(Init_Design(j)), ":", string(SBOModels(i)), ":");
                     try %Enter try catch loop to prevent tests that fail from ending run of the program
-                        SurrogateModelModule_v1(char(data_file(fileChoice)), Num_Iterations, char(SBOModels(i)), char(Samp_Tech(k)), char(Init_Design(j)))%, Num_Start_Pnts, Start_Point);
+                        if(~exist(Start_Point)) %If no start point is given, do not attempt to pass 
+                            SurrogateModelModule_v1(char(data_file(fileChoice)), Num_Iterations, char(SBOModels(i)), char(Samp_Tech(k)), char(Init_Design(j)));
+                        else
+                            SurrogateModelModule_v1(char(data_file(fileChoice)), Num_Iterations, char(SBOModels(i)), char(Samp_Tech(k)), char(Init_Design(j)), Num_Start_Pnts, Start_Point);
+                        end
                         TempRes = load("Results.mat"); %Load Results file from SurrogateModelModule_v1 
+                        if(~exist(Start_Point))
+                           TempRes.Data.StartingPoint = []; 
+                        end
                         eval(strcat("ResultOutput.",data_file(fileChoice),"= [ResultOutput.", data_file(fileChoice)," TempRes.Data];")) %Save Results.mat data to ResultOutput array of structs      
                         InternalSuccessString = strcat(InternalErrorStringFront, "OK"); %Create error log success string and append to error log
                         eval(strcat("ErrorLog.",data_file(fileChoice),"=[","ErrorLog.",data_file(fileChoice)," ", "InternalSuccessString" ,"];"));
