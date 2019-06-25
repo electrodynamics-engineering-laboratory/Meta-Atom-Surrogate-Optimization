@@ -1,4 +1,4 @@
-function SurrogateModelToolboxTest(data_file, num_iterations, SBOModels, Samp_Tech, Init_Design, Num_Start_Points, Start_Point)
+function SurrogateModelToolboxTest(data_file, Num_Iterations, SBOModels, Samp_Tech, Init_Design, Num_Start_Pnts, Start_Point)
 %{
 Inputs:
     Matlab Surrogate Model Module Test
@@ -38,13 +38,13 @@ if nargin == 0
     end
 
     data_file = ["datainput_SBOModel1" "datainput_SBOModel2", "datainput_Branin", "datainput_Shubert"];
-    Num_Iterations = 200;
     SBOModels = ["KRIGexp0" "KRIGexp1" "KRIGexp2" "KRIGgexp0" "KRIGgexp1" "KRIGgexp2" "KRIGgauss0" "KRIGgauss1" "KRIGgauss2" ...
         "KRIGlin0" "KRIGlin1" "KRIGlin2" "KRIGspline0" "KRIGspline1" "KRIGspline2" "KRIGsphere0" "KRIGsphere1" "KRIGsphere2" ...
         "KRIGcub0" "KRIGcub1" "KRIGcub2"];
     Samp_Tech = ["CAND", "SURFmin", "EImax", "SCOREmin"];
     Init_Design = ["LHS", "SLHD", "SPACEFIL"];
     Num_Start_Pnts = 50;
+    Num_Iterations = 200;
     
     clear Start_Point Num_Start_Pnts
 end
@@ -73,7 +73,6 @@ ResultOutput = struct();
 ErrorLog = struct();
 
 %Expand ResultOutput array to prevent excessive slowdown when running tests
-
 BlankStruct = struct('xlow',[],'xup',[],'objfunction',[],'integer',[],'continuous',[], 'dim',[], ...
 'S', [], 'Y', [], 'fevaltime', [], 'fbest', [], 'xbest', [],'Ymed',[],'Problem',[],'SurrogateModel', ...
 [],'SamplingTechnique', [], 'InitialDesign',[],'NumberStartPoints',[],'StartingPoint',[], 'TotalTime', []);
