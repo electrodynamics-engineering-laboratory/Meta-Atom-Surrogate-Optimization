@@ -29,24 +29,41 @@ Dr. Mohamed Salem
 
 %%
 %If not arguments are given, load the necessary values from a previous run
-if nargin == 0
-    if(exist('ToolboxTestInputs.mat') ~= 2)
-        Start_Point = randn(10,4);
-        save('ToolboxTestInputs.mat', 'Start_Point');
-    else
-        load('ToolboxTestInputs.mat');
-    end
 
+if nargin == 0
     data_file = ["datainput_SBOModel1" "datainput_SBOModel2", "datainput_Branin", "datainput_Shubert"];
     SBOModels = ["KRIGexp0" "KRIGexp1" "KRIGexp2" "KRIGgexp0" "KRIGgexp1" "KRIGgexp2" "KRIGgauss0" "KRIGgauss1" "KRIGgauss2" ...
         "KRIGlin0" "KRIGlin1" "KRIGlin2" "KRIGspline0" "KRIGspline1" "KRIGspline2" "KRIGsphere0" "KRIGsphere1" "KRIGsphere2" ...
         "KRIGcub0" "KRIGcub1" "KRIGcub2"];
     Samp_Tech = ["CAND", "SURFmin", "EImax", "SCOREmin"];
     Init_Design = ["LHS", "SLHD", "SPACEFIL"];
-    Num_Start_Pnts = 50;
     Num_Iterations = 200;
     
-    clear Start_Point Num_Start_Pnts
+end
+
+if ~exist('data_file', 'var')
+   data_file = "datainput_Branin"; 
+end
+
+if ~exist('SBOModel','var')
+   SBOModel = "KRIGexp0";
+end
+
+if ~exist('Samp_Tech','var')
+    Samp_Tech = "CAND";
+end
+
+if ~exist('Init_Design', 'var')
+    Init_Design = "LHS";
+end
+
+if ~exist('Num_Iterations','var')
+    Num_Iterations = [];
+end
+
+if ~exist('Start_Point', 'var')
+    Num_Start_Pnts = 0;
+    Start_Point = [];
 end
 
 %%
@@ -55,15 +72,16 @@ end
 %used for testing purposes
 
 MinDesignChoice = 1;
-MaxDesignChoice = length(Init_Design); %length(Init_Design)
+MaxDesignChoice = max(size(Init_Design)); 
 
 MinSamplingTechnique = 1;
-MaxSamplingTechnique = length(Samp_Tech);
+MaxSamplingTechnique = max(size(Samp_Tech));
+
 MinSBOModels = 1;
-MaxSBOModels = length(SBOModels);
+MaxSBOModels = max(size(SBOModels));
 
 MinFileChoice = 1;
-MaxFileChoice = length(data_file);
+MaxFileChoice = max(size(data_file));
 
 %Initialize ResultsOutput structure array and ErrorLog array
 
@@ -73,9 +91,15 @@ ResultOutput = struct();
 ErrorLog = struct();
 
 %Expand ResultOutput array to prevent excessive slowdown when running tests
-BlankStruct = struct('xlow',[],'xup',[],'objfunction',[],'integer',[],'continuous',[], 'dim',[], ...
-'S', [], 'Y', [], 'fevaltime', [], 'fbest', [], 'xbest', [],'Ymed',[],'Problem',[],'SurrogateModel', ...
-[],'SamplingTechnique', [], 'InitialDesign',[],'NumberStartPoints',[],'StartingPoint',[], 'TotalTime', []);
+if exist('Start_Point', 'var') %If there is a starting point given, populate the dummy structure with a StartingPoint field to match output structure
+    BlankStruct = struct('xlow',[],'xup',[],'objfunction',[],'integer',[],'continuous',[], 'dim',[], ...
+    'S', [], 'Y', [], 'fevaltime', [], 'fbest', [], 'xbest', [],'Ymed',[],'Problem',[],'SurrogateModel', ...
+    [],'SamplingTechnique', [], 'InitialDesign',[],'NumberStartPoints',[],'StartingPoint',[], 'TotalTime', []);
+else %If no starting point given, remove the StartingPoint field to match output structure
+    BlankStruct = struct('xlow',[],'xup',[],'objfunction',[],'integer',[],'continuous',[], 'dim',[], ...
+    'S', [], 'Y', [], 'fevaltime', [], 'fbest', [], 'xbest', [],'Ymed',[],'Problem',[],'SurrogateModel', ...
+    [],'SamplingTechnique', [], 'InitialDesign',[],'NumberStartPoints',[], 'TotalTime', []);
+end
 
 for j = MinFileChoice:MaxFileChoice
     eval(strcat("ResultOutput.",data_file(j),"= BlankStruct;"))
@@ -90,15 +114,8 @@ for ITERATIONS = 1:TestScalingFactor
                 for fileChoice = MinFileChoice:MaxFileChoice
                     InternalErrorStringFront = strcat(string(Samp_Tech(k)), ":", string(Init_Design(j)), ":", string(SBOModels(i)), ":");
                     try %Enter try catch loop to prevent tests that fail from ending run of the program
-                        if(~exist(Start_Point)) %If no start point is given, do not attempt to pass 
-                            SurrogateModelModule_v1(char(data_file(fileChoice)), Num_Iterations, char(SBOModels(i)), char(Samp_Tech(k)), char(Init_Design(j)));
-                        else
-                            SurrogateModelModule_v1(char(data_file(fileChoice)), Num_Iterations, char(SBOModels(i)), char(Samp_Tech(k)), char(Init_Design(j)), Num_Start_Pnts, Start_Point);
-                        end
+                        SurrogateModelModule_v1(char(data_file(fileChoice)), Num_Iterations, char(SBOModels(i)), char(Samp_Tech(k)), char(Init_Design(j)), Num_Start_Pnts, Start_Point);
                         TempRes = load("Results.mat"); %Load Results file from SurrogateModelModule_v1 
-                        if(~exist(Start_Point))
-                           TempRes.Data.StartingPoint = []; 
-                        end
                         eval(strcat("ResultOutput.",data_file(fileChoice),"= [ResultOutput.", data_file(fileChoice)," TempRes.Data];")) %Save Results.mat data to ResultOutput array of structs      
                         InternalSuccessString = strcat(InternalErrorStringFront, "OK"); %Create error log success string and append to error log
                         eval(strcat("ErrorLog.",data_file(fileChoice),"=[","ErrorLog.",data_file(fileChoice)," ", "InternalSuccessString" ,"];"));
@@ -126,4 +143,6 @@ save(OutFile, 'ResultOutput', 'ErrorLog' );
 if ispc
     pause(60);
     system('shutdown -s');
+end
+
 end
