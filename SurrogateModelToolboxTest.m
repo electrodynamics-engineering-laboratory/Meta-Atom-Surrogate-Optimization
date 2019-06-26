@@ -1,4 +1,4 @@
-function SurrogateModelToolboxTest(data_file, num_iterations, SBOModels, Samp_Tech, Init_Design, Num_Start_Points, Start_Point)
+function SurrogateModelToolboxTest(data_file, Num_Iterations, SBOModels, Samp_Tech, Init_Design, Num_Start_Pnts, Start_Point)
 %{
 Inputs:
     Matlab Surrogate Model Module Test
@@ -38,13 +38,13 @@ if nargin == 0
     end
 
     data_file = ["datainput_SBOModel1" "datainput_SBOModel2", "datainput_Branin", "datainput_Shubert"];
-    Num_Iterations = 200;
     SBOModels = ["KRIGexp0" "KRIGexp1" "KRIGexp2" "KRIGgexp0" "KRIGgexp1" "KRIGgexp2" "KRIGgauss0" "KRIGgauss1" "KRIGgauss2" ...
         "KRIGlin0" "KRIGlin1" "KRIGlin2" "KRIGspline0" "KRIGspline1" "KRIGspline2" "KRIGsphere0" "KRIGsphere1" "KRIGsphere2" ...
         "KRIGcub0" "KRIGcub1" "KRIGcub2"];
     Samp_Tech = ["CAND", "SURFmin", "EImax", "SCOREmin"];
     Init_Design = ["LHS", "SLHD", "SPACEFIL"];
     Num_Start_Pnts = 50;
+    Num_Iterations = 200;
     
     clear Num_Start_Pnts Start_Point
     display("Removing Start Point values");
@@ -75,8 +75,9 @@ ErrorLog = struct();
 
 %Expand ResultOutput array to prevent excessive slowdown when running tests
 BlankStruct = struct('xlow',[],'xup',[],'objfunction',[],'integer',[],'continuous',[], 'dim',[], ...
-    'S', [], 'Y', [], 'fevaltime', [], 'fbest', [], 'xbest', [],'Ymed',[],'Problem',[],'SurrogateModel', ...
-    [],'SamplingTechnique', [], 'InitialDesign',[],'NumberStartPoints',[], 'TotalTime', []); %'StartingPoint',[],
+'S', [], 'Y', [], 'fevaltime', [], 'fbest', [], 'xbest', [],'Ymed',[],'Problem',[],'SurrogateModel', ...
+[],'SamplingTechnique', [], 'InitialDesign',[],'NumberStartPoints',[],'StartingPoint',[], 'TotalTime', []);
+
 for j = MinFileChoice:MaxFileChoice
     eval(strcat("ResultOutput.",data_file(j),"= BlankStruct;"))
     eval(strcat("ErrorLog.",data_file(j)," = [];")); %Create blank arrays in ErrorLog fields for each particular data file
@@ -90,8 +91,15 @@ for ITERATIONS = 1:TestScalingFactor
                 for fileChoice = MinFileChoice:MaxFileChoice
                     InternalErrorStringFront = strcat(string(Samp_Tech(k)), ":", string(Init_Design(j)), ":", string(SBOModels(i)), ":");
                     try %Enter try catch loop to prevent tests that fail from ending run of the program
-                        SurrogateModelModule_v1(char(data_file(fileChoice)), Num_Iterations, char(SBOModels(i)), char(Samp_Tech(k)), char(Init_Design(j)))%, Num_Start_Pnts, Start_Point);
+                        if(~exist(Start_Point)) %If no start point is given, do not attempt to pass 
+                            SurrogateModelModule_v1(char(data_file(fileChoice)), Num_Iterations, char(SBOModels(i)), char(Samp_Tech(k)), char(Init_Design(j)));
+                        else
+                            SurrogateModelModule_v1(char(data_file(fileChoice)), Num_Iterations, char(SBOModels(i)), char(Samp_Tech(k)), char(Init_Design(j)), Num_Start_Pnts, Start_Point);
+                        end
                         TempRes = load("Results.mat"); %Load Results file from SurrogateModelModule_v1 
+                        if(~exist(Start_Point))
+                           TempRes.Data.StartingPoint = []; 
+                        end
                         eval(strcat("ResultOutput.",data_file(fileChoice),"= [ResultOutput.", data_file(fileChoice)," TempRes.Data];")) %Save Results.mat data to ResultOutput array of structs      
                         InternalSuccessString = strcat(InternalErrorStringFront, "OK"); %Create error log success string and append to error log
                         eval(strcat("ErrorLog.",data_file(fileChoice),"=[","ErrorLog.",data_file(fileChoice)," ", "InternalSuccessString" ,"];"));
