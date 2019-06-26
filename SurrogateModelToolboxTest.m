@@ -46,7 +46,8 @@ if nargin == 0
     Init_Design = ["LHS", "SLHD", "SPACEFIL"];
     Num_Start_Pnts = 50;
     
-    clear Start_Point Num_Start_Pnts
+    clear Num_Start_Pnts Start_Point
+    display("Removing Start Point values");
 end
 
 %%
@@ -62,8 +63,8 @@ MaxSamplingTechnique = length(Samp_Tech);
 MinSBOModels = 1;
 MaxSBOModels = length(SBOModels);
 
-MinFileChoice = 1;
-MaxFileChoice = length(data_file);
+MinFileChoice = 3;
+MaxFileChoice = 3; %length(data_file)
 
 %Initialize ResultsOutput structure array and ErrorLog array
 
@@ -75,7 +76,7 @@ ErrorLog = struct();
 %Expand ResultOutput array to prevent excessive slowdown when running tests
 BlankStruct = struct('xlow',[],'xup',[],'objfunction',[],'integer',[],'continuous',[], 'dim',[], ...
     'S', [], 'Y', [], 'fevaltime', [], 'fbest', [], 'xbest', [],'Ymed',[],'Problem',[],'SurrogateModel', ...
-    [],'SamplingTechnique', [], 'InitialDesign',[],'NumberStartPoints',[],'StartingPoint',[], 'TotalTime', []);
+    [],'SamplingTechnique', [], 'InitialDesign',[],'NumberStartPoints',[], 'TotalTime', []); %'StartingPoint',[],
 for j = MinFileChoice:MaxFileChoice
     eval(strcat("ResultOutput.",data_file(j),"= BlankStruct;"))
     eval(strcat("ErrorLog.",data_file(j)," = [];")); %Create blank arrays in ErrorLog fields for each particular data file
@@ -109,7 +110,7 @@ for ITERATIONS = 1:TestScalingFactor
 end
 %%
 OutputLocation = "TestingOutputs/";
-TestName = "NOSTRT_";
+TestName = "BRANINONLY_";
 DateString = char(datetime);
 DateString(DateString == ' ') = '_';
 DateString(DateString == ':') = '-';
@@ -117,5 +118,5 @@ OutFile = strcat(OutputLocation,TestName,DateString,'_','ToolboxTestResults.mat'
 save(OutFile, 'ResultOutput', 'ErrorLog' );
 if ispc
     pause(60);
-    system('shutdown -s');
+    %system('shutdown -s');
 end
