@@ -37,12 +37,8 @@ function Figures = ParseResultsOutput(Data, GivenFileName)
                eval(strcat("ParsedData.", fbestString," = [Data.", DataFileNames(i), ".",fbestString,"];"));
            elseif strcmp(CurDataFileFields{j}, xbestString)
                eval(strcat("TempArray = 1:length([Data.",DataFileNames(i),"]);"));
-               if strcmp(DataFileNames(i), "datainput_Schoen_10_4_3")
-                  DataFileNames(i);
-               end
                for k = TempArray
                   eval(strcat("ParsedData.",xbestString, " = [ParsedData.", xbestString, " transpose([Data.", DataFileNames(i), "(k).", CurDataFileFields{j}, "])];"))
-                  k
                end
            elseif strcmp(CurDataFileFields{j}, totalTimeString)
                eval(strcat("ParsedData.", totalTimeString, " = [Data.", DataFileNames(i), ".", totalTimeString, "];"));

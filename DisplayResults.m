@@ -8,7 +8,7 @@ function Figures = DisplayResults(FileLocation)
 %}
 DesiredExtension = ".mat";
 Figures = [];
-[filepath, name, extension] = fileparts(string(FileLocaton));
+[filepath, name, extension] = fileparts(string(FileLocation));
 if strcmp(extension,DesiredExtension)
     load(FileLocation); %Load current file as it meets desired criteria
     Figures = [Figures ParseResultsOutput(ResultOutput,name) ParseErrorLog(ErrorLog, name)]; %Append generated figures to figures array
