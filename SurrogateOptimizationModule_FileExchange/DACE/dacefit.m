@@ -87,7 +87,7 @@ if  min(sum(abs(D),2) ) == 0
 % Regression matrix
 F = feval(regr, S);  [mF p] = size(F);
 if  mF ~= m, error('number of rows in  F  and  S  do not match'), end
-if  p > mF,  error('least squares problem is underdetermined'), end
+if  p > mF, error('least squares problem is underdetermined'), end
 
 % parameters for objective function
 par = struct('corr',corr, 'regr',regr, 'y',Y, 'F',F, ...

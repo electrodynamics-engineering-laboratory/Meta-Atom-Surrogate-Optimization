@@ -1,7 +1,6 @@
 function [ys,dmodel] = get_ys_krig(x,y,xs,nvar,b,c,cor,reg)
 % This function builds an PRS metamodel and predicts the function value at
 % test points.
-
 % ---Variable Descriptions---
 % x         = normalized design(training points): in an 
 %           [num_of_points by num_of_variables] matrix
@@ -24,10 +23,6 @@ function [ys,dmodel] = get_ys_krig(x,y,xs,nvar,b,c,cor,reg)
 %    reg = 1 -> 0 degree;
 %    reg = 2 -> 1st degree;
 %    reg = 3 -> 2nd degree;
-
-
-% Add the path name where the dace toolbox folder is located
-addpath('...\dace')
 
 % Initial estimate of theta0 (correlation parameter)
 a = (b+c)/2;
