@@ -68,7 +68,7 @@ else  % given theta
 end
 
 % Normalize data
-% Find the mean and standard deviation to normalize
+
 mS = mean(S);
 sS = std(S); 
 mY = mean(Y);

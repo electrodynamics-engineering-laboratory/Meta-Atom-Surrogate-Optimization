@@ -11,8 +11,8 @@ end
 func = @(x)((x(:,3)+i*x(:,4))./(x(:,1)+i*x(:,2) + x(:,3)+i*x(:,4))); %The function to be tested against
 dimension = 4; %The function's number of variables
 numStrPnt = 10; %The number of start points for the function? (Might be wrong)
-xLow = 0.1; 
-xHigh = 1;
+xLow = [0.1,0.1,0.1,0.1]; 
+xHigh = [10,10,10,10];
 thetaLow = 0.1;
 thetaHigh = 0.9;
 

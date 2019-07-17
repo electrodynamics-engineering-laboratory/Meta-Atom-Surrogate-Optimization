@@ -12,11 +12,8 @@ function [ys, dmodel] = EELMetamodel(dimension, numStartPoints, initialDesign, x
             initialDesign -        a string of characters matching 'lhsdesign', 'SLHD',
                                    'bestlh', or 'cornerpoints'. Not case sensitive.
             xLow -                 an array of floating point values that
-                                   indicate the lower bound for each 
-                                   function parameter.
-            xHigh -                an array of floating poitn values that
-                                   indicate the upper bound for each
-                                   function parameter.
+            indicate the lower bound for each 
+            xHigh - 
             objectFunction  -      the function with which to compare the
                                    model and creating training points
             thetaLowerBound -      the lower limit of the theta value
@@ -30,29 +27,45 @@ function [ys, dmodel] = EELMetamodel(dimension, numStartPoints, initialDesign, x
                 
 %}
 
-% Determine the initial design and create a matrix of training points depending on that choice
+% Determine the initial design and create a matrix of training points
+% depending on that choice
 initialDesignChoices = ["lhsdesign",  "bestlh", "SLHD", "cornerpoints"];
+
+%{
+%round integer variables
+    Data.S(:,Data.integer)=round(Data.S(:,Data.integer));
+    while rank([Data.S,ones(size(Data.S,1),1)]) < Data.dim+1 %regenerate starting design if rank of matrix too small
+        Data.S=StartingDesign(initial_design,number_startpoints, Data);  %create initial experimental design
+        if exist ('starting_point', 'var') %user gives one or more starting points to add to the initital design
+            Data.S=[starting_point; Data.S];
+        end
+        Data.S(:,Data.integer)=round(Data.S(:,Data.integer));
+    end 
+%}
+
 if strcmpi( initialDesign,  initialDesignChoices(1))
-    % Use the lhsdesign function built into matlab to provide trainig points
+    
+    
+    
+    %Use the lhsdesign function built into matlab to provide trainig points
     TrainingPoints = lhsdesign(numStartPoints, dimension, 'criterion', 'maximin', 'iterations', 20);
     TrainingPoints = repmat(xHigh-xLow,numStartPoints,1).*TrainingPoints + repmat(xLow,numStartPoints,1);
 elseif strcmpi( initialDesign,  initialDesignChoices(2))
-    % Use the optimized latin hypercube to provide training points
+    %Use the optimized latin hypercube to provide training points
     TrainingPoints = bestlh(numStartPoints,dimension,20,10);
     TrainingPoints = repmat(xHigh-xLow,size(TrainingPoints,1),1).*TrainingPoints + repmat(xLow,size(TrainingPoints,1),1);
 elseif strcmpi( initialDesign,  initialDesignChoices(3))
-    % Use the symmetric latin hypercube design to provide training points
+    %Use the symmetric latin hypercube design to provide training points
     TrainingPoints = SLHD(dimension, numStartPoints);
     TrainingPoints = repmat(xHigh-xLow,size(TrainingPoints,1),1).*TrainingPoints + repmat(xLow,size(TrainingPoints,1),1);
 elseif strcmpi( initialDesign,  initialDesignChoices(4))
-    % Use the corner points design to provide training points
+    %Use the corner points design to provide training points
     TrainingPoints = cornerpoints(Conditions, numStartPoints);
 else
     error("A valid initial design was not given. Aborting operation.")
     return;
 end
 
-% Set the correlation value to a number for use in the get_ys_krig function
 correlationChoices = ["Cubic", "Exponential", "Gaussian", "Linear", "Spherical", "Spline"];
 if strcmpi(correlation,correlationChoices(1))
     correlation = 1;
@@ -71,7 +84,6 @@ else
     return;
 end
 
-% Add one to the regressionPolynomial value to correspond with get_ys_krig function's desired inputs
 if regressionPolynomial < 3 && regressionPolynomial >= 0
     regressionPolynomial = regressionPolynomial + 1;
 else
@@ -79,15 +91,16 @@ else
     return;
 end
 
-% Given the amount of training points, evaluate the given function with each set of training points
+%Given the amount of training points, evaluate the given function with each
+%set of training points
 FunctionValues = zeros(size(TrainingPoints,1));
 
 for i = 1:size(TrainingPoints,1)
     FunctionValues(i,1) = feval(objectFunction, TrainingPoints(i,:));
 end
 
-% Create a set of random test points, this should be changed later to something better reflecting user input
-TestPoints = randn(1, dimension);
+%TestPoints = 1:dimension;
+TestPoints = randn(1,dimension);
 
 [ys, dmodel] = get_ys_krig(TrainingPoints, FunctionValues, TestPoints, dimension, thetaLowerBound, thetaUpperBound, correlation, regressionPolynomial);
 
