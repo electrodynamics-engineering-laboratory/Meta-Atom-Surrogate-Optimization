@@ -11,9 +11,8 @@ all: EELMetamodelGUI.x
 EELMetamodelGUI.x: ElectrodynamicsEngineeringLaboratoryGUI.cpp
 	g++ ElectrodynamicsEngineeringLaboratoryGUI.cpp $(FLAGS) -o EELMetamodelGUI.x
 
-test: TestFile.cpp
-	g++ TestFile.cpp $(FLAGS) -o Test.x
-	./Test.x
+EELImagePanel.x: EELImagePanel.cpp EELImagePanel.h
+	g++ EELImagePanel.cpp $(FLAGS) -o EELImagePanel.x
 
 clean:
 	rm *~ *.o *.x *#

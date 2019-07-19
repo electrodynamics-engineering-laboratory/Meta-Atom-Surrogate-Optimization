@@ -28,7 +28,7 @@ public:
      */
     
     DECLARE_EVENT_TABLE()
-};
+ };
 
 
 BEGIN_EVENT_TABLE(wxImagePanel, wxPanel)
