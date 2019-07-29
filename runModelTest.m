@@ -22,7 +22,7 @@ sampStrat = ["Cubic", "Exponential", "Gaussian", "Linear", "Spherical", "Spline"
 regrPoly = [0, 1, 2];
 
 %Preallocate a blank structure for data input later
-Output = struct('ys', [], 'dmodel', [], 'error', []);
+Output = struct('ys', [], 'dmodel', [], 'error', [], 'parameters', []);
 
 %%
 for Iterations = 1:testsToRun
@@ -30,9 +30,10 @@ for Iterations = 1:testsToRun
        for SSChoice = 1:length(sampStrat)
           for RPChoice = 1:length(regrPoly)
               try
-                [ys, dmodel] = EELMetamodel(dimension, numStrPnt, initDesign(IDChoice), xLow, xHigh, func, thetaLow, thetaHigh, sampStrat(SSChoice), regrPoly(RPChoice));
+                [ys, dmodel, parameters] = EELMetamodel(dimension, numStrPnt, initDesign(IDChoice), xLow, xHigh, func, thetaLow, thetaHigh, sampStrat(SSChoice), regrPoly(RPChoice));
                 Output.ys = [Output.ys ys];
                 Output.dmodel = [Output.dmodel dmodel];
+                Output.parameters = [Output.parameters parameters];
               catch MatlabError
                 tempStruct = struct('initDesign', initDesign(IDChoice), 'sampStrat', sampStrat(SSChoice), 'regrPoly', regrPoly(RPChoice), 'message', string(MatlabError.message));
                 Output.error = [Output.error tempStruct];
