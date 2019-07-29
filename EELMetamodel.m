@@ -1,4 +1,4 @@
-function [ys, dmodel] = EELMetamodel(dimension, numStartPoints, initialDesign, xLow, xHigh, objectFunction, thetaLowerBound, thetaUpperBound, correlation, regressionPolynomial)
+function [ys, dmodel, Parameters] = EELMetamodel(dimension, numStartPoints, initialDesign, xLow, xHigh, objectFunction, thetaLowerBound, thetaUpperBound, correlation, regressionPolynomial)
 %{
     Function creates the TrainingPoints, FunctionValues, and TestPoints for
     a Kriging Metamodel. The function accepts a structure with
@@ -90,5 +90,17 @@ end
 TestPoints = rand(dimension);
 
 [ys, dmodel] = get_ys_krig(TrainingPoints, FunctionValues, TestPoints, dimension, thetaLowerBound, thetaUpperBound, correlation, regressionPolynomial);
+
+% dimension, , , xLow, xHigh, , , thetaUpperBound, , 
+
+Parameters = struct();
+Parameters.dimension = dimension;
+Parameters.numStartPoints = numStartPoints;
+Parameters.initialDesign = initialDesign;
+Parameters.xLim = [xLow; xHigh];
+Parameters.objectFunction = objectFunction;
+Parameters.thetaBound = [thetaLowerBound thetaUpperBound];
+Parameters.correlation = correlation;
+Parameters.regressionPolynomial = regressionPolynomial;
 
 end
