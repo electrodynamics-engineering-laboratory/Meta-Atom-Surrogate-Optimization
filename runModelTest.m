@@ -10,8 +10,8 @@ if nargin == 0
 end
 func = @(x)((x(:,3)+i*x(:,4))./(x(:,1)+i*x(:,2) + x(:,3)+i*x(:,4))); %The function to be tested against
 dimension = 4; %The function's number of variables
-numStrPnt = 10; %The number of start points for the function? (Might be wrong)
-xLow = [0.1,0.1,0.1,0.1]; 
+numStrPnt = 4; %The number of start points for the function? (Might be wrong)
+xLow = [0,0.5,0.2,3]; 
 xHigh = [10,10,10,10];
 thetaLow = 0.1;
 thetaHigh = 0.9;
@@ -31,6 +31,8 @@ for Iterations = 1:testsToRun
           for RPChoice = 1:length(regrPoly)
               try
                 [ys, dmodel] = EELMetamodel(dimension, numStrPnt, initDesign(IDChoice), xLow, xHigh, func, thetaLow, thetaHigh, sampStrat(SSChoice), regrPoly(RPChoice));
+                % Display ys
+                ys
                 Output.ys = [Output.ys ys];
                 Output.dmodel = [Output.dmodel dmodel];
               catch MatlabError
@@ -45,7 +47,7 @@ end
 %%
 % Save the output structure into a file
 OutputLocation = "TestingOutputs/";
-TestName = "DACE";
+TestName = "DACE_MAT";
 DateString = char(datetime);
 DateString(DateString == ' ') = '_';
 DateString(DateString == ':') = '-';

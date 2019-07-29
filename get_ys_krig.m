@@ -8,8 +8,8 @@ function [ys,dmodel] = get_ys_krig(x,y,xs,nvar,b,c,cor,reg)
 % xs        = test points: in an 
 %           [num_of_points by num_of_variables] matrix
 % nvar      = the number of design variables
-% b         = the lower bound on theta 0.1
-% c         = the upper bound on theta 0.9
+% b         = the lower bound on theta
+% c         = the upper bound on theta
 % cor       = the correlation functions
 %       --Supported Correlation Functions--
 %    cor = 1 -> Cubic;

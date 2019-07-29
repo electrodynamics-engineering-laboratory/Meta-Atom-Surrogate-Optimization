@@ -80,14 +80,14 @@ else
 end
 
 % Given the amount of training points, evaluate the given function with each set of training points
-FunctionValues = zeros(size(TrainingPoints,1));
+FunctionValues = zeros(size(TrainingPoints,1),1);
 
 for i = 1:size(TrainingPoints,1)
     FunctionValues(i,1) = feval(objectFunction, TrainingPoints(i,:));
 end
 
 % Create a set of random test points, this should be changed later to something better reflecting user input
-TestPoints = randn(1, dimension);
+TestPoints = rand(dimension);
 
 [ys, dmodel] = get_ys_krig(TrainingPoints, FunctionValues, TestPoints, dimension, thetaLowerBound, thetaUpperBound, correlation, regressionPolynomial);
 
