@@ -94,6 +94,9 @@ TestPoints = rand(dimension);
 % dimension, , , xLow, xHigh, , , thetaUpperBound, , 
 
 Parameters = struct();
+Parameters.TrainingPoints = TrainingPoints;
+Parameters.FunctionValues = FunctionValues; 
+Parameters.TestPoints = TestPoints;
 Parameters.dimension = dimension;
 Parameters.numStartPoints = numStartPoints;
 Parameters.initialDesign = initialDesign;
