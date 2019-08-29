@@ -62,7 +62,6 @@ for k = 1:size(Input.ys,1)
    plot([1:length(AccuracyOutput.GivenYSValues(:,k))], AccuracyOutput.GivenYSValues(:,k), 'ro')
    hold on
    plot([1:length(AccuracyOutput.NormalizedYS(:,k))], AccuracyOutput.TestPointEval(:,k), 'bx')
-   plot([1:length(AccuracyOutput.NormalizedYS(:,k))], AccuracyOutput.NormalizedYS(:,k), 'ks')
    hold off
    legend('Given YS Values', 'Test Point Evaluations', 'Normalized YS Values', 'Location', 'southoutside')
    title(strcat("Dimension Parameter (",string(k),")"));
@@ -72,5 +71,7 @@ for k = 1:size(Input.ys,1)
    pause(0.5)
    
 end
+
+
 
 end

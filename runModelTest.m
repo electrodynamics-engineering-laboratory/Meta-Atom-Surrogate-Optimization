@@ -10,7 +10,7 @@ if nargin == 0
 end
 func = @(x)((x(:,3)+i*x(:,4))./(x(:,1)+i*x(:,2) + x(:,3)+i*x(:,4))); %The function to be tested against
 dimension = 4; %The function's number of variables
-numStrPnt = 4; %The number of start points for the function? (Might be wrong)
+numStrPnt = 1; %The number of start points which are used to create training points
 xLow = [0,0.5,0.2,3]; 
 xHigh = [10,10,10,10];
 thetaLow = 0.1;
@@ -46,7 +46,7 @@ end
 %%
 % Save the output structure into a file
 OutputLocation = "TestingOutputs/";
-TestName = "DACE_MAT";
+TestName = strcat("DACE_MAT_",string(numStrPnt),"TP_");
 DateString = char(datetime);
 DateString(DateString == ' ') = '_';
 DateString(DateString == ':') = '-';
