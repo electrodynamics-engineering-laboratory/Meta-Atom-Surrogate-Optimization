@@ -28,8 +28,8 @@ OutputArray = struct('ys', [], 'dmodel', [], 'error', [], 'parameters', []);
  
  %Get TrainingPoint lengths
  for i = 2:length(OutputArray)
-     InternalRMSEValues = 1:length(OutputArray);
-     InternalTrainingPointLength = 1:length(OutputArray);
+     InternalRMSEValues = 1:size(OutputArray(i).ys,2);
+     InternalTrainingPointLength = 1:size(OutputArray(i).ys,2);
      for j = 1:size(OutputArray(i).ys,2)
         InternalYS = transpose(OutputArray(i).ys(:,j));
         InternalParam = OutputArray(i).parameters;
@@ -42,9 +42,26 @@ OutputArray = struct('ys', [], 'dmodel', [], 'error', [], 'parameters', []);
             TestPointEval(k) = feval(InternalParam(j).objectFunction, InternalParam(j).TestPoints(k,:));
         end
      
-        InternalTrainingPointLength(j) = InternalParam.numStartPoints;
+        InternalTrainingPointLength(j) = InternalParam.numStartPoints
+        
+        if(InternalParam(j).numStartPoints > 50)
+            display("TESTING")
+        end
+        
         InternalRMSEValues(j) = getRMSE(InternalYS, TestPointEval);
      end
-     RMSEValues = [RMSEValues transpose(InternalRMSEValues)];
-     TrainingPointLength = [TrainingPointLength transpose(InternalTrainingPointLength)];
+     RMSEValues = [RMSEValues InternalRMSEValues];
+     TrainingPointLength = [TrainingPointLength InternalTrainingPointLength];
  end
+ 
+ Figure1 = figure();
+ subplot(2,1,1)
+ plot(TrainingPointLength, real(RMSEValues), 'rx')
+ xlabel("Training Point Length")
+ ylabel("re(RMSE)")
+ title("re(RMSE) vs. Training Point Length")
+ subplot(2,1,2)
+ plot(TrainingPointLength, imag(RMSEValues), 'bs')
+ xlabel("Training Point Length")
+ ylabel("im(RMSE)")
+ title("im(RMSE) vs. Training Point Length")
