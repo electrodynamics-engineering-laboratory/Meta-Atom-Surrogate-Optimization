@@ -87,12 +87,12 @@ for i = 1:size(TrainingPoints,1)
 end
 
 % Create a set of random test points, this should be changed later to something better reflecting user input
-TestPoints = rand(dimension);
+%TestPoints = rand(dimension);
+TestPoints = [1 2 3 4; 2 3 4 1; 3 4 1 2; 4 1 2 3];
 
 [ys, dmodel] = get_ys_krig(TrainingPoints, FunctionValues, TestPoints, dimension, thetaLowerBound, thetaUpperBound, correlation, regressionPolynomial);
 
-% dimension, , , xLow, xHigh, , , thetaUpperBound, , 
-
+%Place all given parameters into the Parameters structure for output
 Parameters = struct();
 Parameters.TrainingPoints = TrainingPoints;
 Parameters.FunctionValues = FunctionValues; 

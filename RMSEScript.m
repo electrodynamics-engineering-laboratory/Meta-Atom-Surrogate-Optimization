@@ -42,7 +42,7 @@ OutputArray = struct('ys', [], 'dmodel', [], 'error', [], 'parameters', []);
             TestPointEval(k) = feval(InternalParam(j).objectFunction, InternalParam(j).TestPoints(k,:));
         end
      
-        InternalTrainingPointLength(j) = InternalParam.numStartPoints
+        InternalTrainingPointLength(j) = InternalParam.numStartPoints;
         
         if(InternalParam(j).numStartPoints > 50)
             display("TESTING")
@@ -50,18 +50,19 @@ OutputArray = struct('ys', [], 'dmodel', [], 'error', [], 'parameters', []);
         
         InternalRMSEValues(j) = getRMSE(InternalYS, TestPointEval);
      end
-     RMSEValues = [RMSEValues InternalRMSEValues];
-     TrainingPointLength = [TrainingPointLength InternalTrainingPointLength];
+     if(length(InternalRMSEValues) == 6) %Pad with zeros due to some error happening below five training points
+        InternalRMSEValues = [InternalRMSEValues zeros(1,6)];
+     end
+     RMSEValues = [RMSEValues; InternalRMSEValues];
+     if(length(InternalTrainingPointLength) == 6) %Pad with zeros due to some error happening below five training points
+         InternalTrainingPointLength = [InternalTrainingPointLength zeros(1,6)];
+     end
+     TrainingPointLength = [TrainingPointLength; InternalTrainingPointLength];
  end
  
  Figure1 = figure();
- subplot(2,1,1)
- plot(TrainingPointLength, real(RMSEValues), 'rx')
+ %subplot(2,1,1)
+ plot(TrainingPointLength(:,1), RMSEValues(:,1), 'rx')
  xlabel("Training Point Length")
  ylabel("re(RMSE)")
  title("re(RMSE) vs. Training Point Length")
- subplot(2,1,2)
- plot(TrainingPointLength, imag(RMSEValues), 'bs')
- xlabel("Training Point Length")
- ylabel("im(RMSE)")
- title("im(RMSE) vs. Training Point Length")

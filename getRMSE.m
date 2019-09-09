@@ -19,6 +19,6 @@ if(ActualLength ~= TheoreticalLength)
     return  
 end
 
-RMSE = sqrt((sum(ActualValues - TheoreticalValues).^2)/ActualLength);
+RMSE = sqrt(sum((abs(ActualValues) - abs(TheoreticalValues)).^2)/ActualLength);
 
 end

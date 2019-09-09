@@ -41,11 +41,11 @@ elseif cor == 6
     correlation = @corrspline;
 end
 if reg == 1
-    regression = @regpoly0;
+    regressionFunc = @regpoly0;
 elseif reg == 2
-    regression = @regpoly1;
+    regressionFunc = @regpoly1;
 elseif reg == 3
-    regression = @regpoly2;
+    regressionFunc = @regpoly2;
 end
 % MODEL IDENTIFICATION 
 % Identifying the Kriging Model Parameters (Correlation Structure)
@@ -56,7 +56,7 @@ upb    = c*ones(1,nvar);
 
 % Specification of the input and output data, and the regression 
 % and correlation model 
-[dmodel, perf] = dacefit(x, y, regression, correlation, theta0, lob, upb);
+[dmodel, perf] = dacefit(x, y, regressionFunc, correlation, theta0, lob, upb);
 % dmodel: a data structure with all the necessary information to feed the
 % predictor function
 % perf: a data structure with details of the optimization process leading
