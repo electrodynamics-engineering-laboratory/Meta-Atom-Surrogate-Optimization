@@ -1,5 +1,5 @@
 clear;
-TargetPath = "TestingOutputs/";
+TargetPath = "../TestingOutputs/";
 TargetDirectory = dir(TargetPath);
 ValidFiles = string(1:(length(TargetDirectory)-3));
 
