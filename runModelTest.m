@@ -60,7 +60,7 @@ for numStartPoints = (1):(inputStartPoints)
     end %testsToRun Loop
 
 % Save the output structure into a file
-    OutputLocation = "TestingOutputs/";
+    OutputLocation = "../TestingOutputs/";
     TestName = strcat("DACE_MAT_",string(numStartPoints),"TP_");
     DateString = char(datetime);
     DateString(DateString == ' ') = '_';

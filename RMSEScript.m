@@ -53,12 +53,16 @@ RegressionPolynomial = zeros(length(ValidFiles),18);
      RegressionPolynomial(i,:) = InternalRegrPolynomial;
      Correlation(i,:) = InternalCorrelation;
  end
- ParamPairs = ["Cubic-Regr0", "Exponential-Regr0", "Gaussian-Regr0", "Linear-Regr0", "Spherical-Regr0", "Spline-Regr0" ...
-       "Cubic-Regr1", "Exponential-Regr1", "Gaussian-Regr1", "Linear-Regr1", "Spherical-Regr1", "Spline-Regr1" ...
-       "Cubic-Regr2", "Exponential-Regr2", "Gaussian-Regr2", "Linear-Regr2", "Spherical-Regr2", "Spline-Regr2"];
+ ParamPairs = ["Cubic-Regr0", "Cubic-Regr1", "Cubic-Regr2", ...
+     "Exponential-Regr0", "Exponential-Regr1", "Exponential-Regr2", ...
+     "Gaussian-Regr0", "Gaussian-Regr1", "Gaussian-Regr2", ...
+     "Linear-Regr0", "Linear-Regr1", "Linear-Regr2", ...
+     "Spherical-Regr0", "Spherical-Regr1", "Spherical-Regr2",...
+     "Spline-Regr0", "Spline-Regr1" "Spline-Regr2", ...
+      ];
  Figures = [];
  for i = 1:size(RMSEValues,2)
-     Figure = [Figures figure()];
+     Figures = [Figures figure('Units', 'normalized', 'position', [0 0 1 1])];
      %subplot(2,1,1)
      plot(TrainingPointLengths(:,i), RMSEValues(:,i), 'rx')
      ylim([0, 0.25])
@@ -66,4 +70,5 @@ RegressionPolynomial = zeros(length(ValidFiles),18);
      xlabel("Training Point Length")
      ylabel("re(RMSE)")
      title(strcat("re(RMSE) vs. Training Point Length: ", ParamPairs(i)))
+     saveas(Figures(end), strcat("RMSEvsTrainingPointLength_",ParamPairs(i),".png"))
  end
