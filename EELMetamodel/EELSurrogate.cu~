@@ -1,0 +1,22 @@
+/*
+File: EELSurrogate.cu
+Date: 2-24-2020
+Author: Joe Haun
+Purpose: This file contains the EEL Surrogate class.  
+*/
+
+#include "cuda_runtime.h"
+#include "device_launch_parameters.h"
+
+#include <stdio.h>
+
+//Function tiles given matrix with numRows x numColumns copies
+void replicateMatrix(double* matrix, int numRows, int numColumns);
+
+__global__ void corrgauss(double* r, double* dr, double* theta, double* d);
+
+__global__ void addKernel(int *c, const int *a, const int *b)
+{
+    int i = threadIdx.x;
+    c[i] = a[i] + b[i];
+}

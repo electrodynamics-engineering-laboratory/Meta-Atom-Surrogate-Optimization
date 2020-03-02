@@ -1,10 +1,19 @@
+/*
+File: kernel.cu
+Date: 2-24-2020
+Author: Joe Haun
+Purpose: This file is for the purposes of writing Metamodel test code. 
+*/
 
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
 
 #include <stdio.h>
 
-cudaError_t addWithCuda(int *c, const int *a, const int *b, unsigned int size);
+//Function tiles given matrix with numRows x numColumns copies
+void replicateMatrix(double* matrix, int numRows, int numColumns);
+
+__global__ void corrgauss(double* r, double* dr, double* theta, double* d);
 
 __global__ void addKernel(int *c, const int *a, const int *b)
 {
