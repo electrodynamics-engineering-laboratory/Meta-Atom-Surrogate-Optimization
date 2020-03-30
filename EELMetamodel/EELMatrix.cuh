@@ -10,7 +10,7 @@ Purpose: This file contains the EEL Matrix class definitions.
 
 #include <stdio.h>
 
-class EELMatrix{
+class EELMatrix {
 public:
 	EELMatrix(int rows, int columns);
 	~EELMatrix();
@@ -21,4 +21,4 @@ public:
 private:
 	double* matrix;
 
-}
+};

@@ -1,0 +1,2 @@
+C:\Users\Megawhopper\Documents\GitHub\Surrogate_Optimization\Surrogate_Optimization\Surrogate_Optimization\Surrogate_Optimization\EELMetamodel\x64\Debug\EELMetamodel.exe
+C:\Users\Megawhopper\Documents\GitHub\Surrogate_Optimization\Surrogate_Optimization\Surrogate_Optimization\Surrogate_Optimization\EELMetamodel\x64\Debug\EELMetamodel.pdb
