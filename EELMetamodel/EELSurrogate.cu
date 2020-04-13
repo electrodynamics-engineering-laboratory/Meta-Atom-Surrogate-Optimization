@@ -11,10 +11,7 @@ Purpose: This file contains the EEL Surrogate class.
 #include <iostream>
 
 //Function sets up and performs calculations on the GPU
-cudaError_t cudaSetup(double* c, double* a, double* b, unsigned int size);
-
-//Function calculates the covariance of the given matrices
-void calculateCovariance(double outputMatrix[], double firstInput[], double secondInput[], int dimension);
+cudaError_t cudaSetup(double* c, double* a, double* b, double* identityMatrix, unsigned int size);
 
 //Function calculates the average of the given matrix
 double calculateAverage(double inputMatrix[], int dimension);
@@ -23,20 +20,28 @@ double calculateAverage(double inputMatrix[], int dimension);
 __global__ void printWithGPU(double* matrix, int dimension);
 
 //Function calculates the covariance of the given matrices and places them into a new output matrix
-__global__ void covarianceHelper(double* outputMatrix, double* X, double meanX, double* Y, double meanY, int dimension);
+__global__ void calculateCovariance(double* outputMatrix, double* X, double meanX, double* Y, double meanY, int dimension);
 
-//Function 
-__global__ void nonDiagNormalize(double* firstInput, double* secondInput, int n, int i);
-__global__ void diagNormalize(double* firstInput, double* secondInput, int n, int i);
-__global__ void gaussJordan(double* firstInput, double* secondInput, int n, int i);
-__global__ void setZero(double* input, int n, int i);
+//Functions are used to calculate the inverse of a given matrix using Gauss-Jordan elimination method
+__global__ void nonDiagNormalize(double* inputMatrix, double* identityMatrix, int n, int i);
+__global__ void diagNormalize(double* inputMatrix, double* identityMatrix, int n, int i);
+__global__ void gaussJordan(double* inputMatrix, double* identityMatrix, int n, int i);
+__global__ void setZero(double* inputMatrix, double* identityMatrix, int n, int i);
+
+//Function calculates the Kriging Estimator for the Global Mean
+__global__ void calculateKrigingEstimator(double* result, double* covarianceMatrix, double* sampleMatrix);
+
+//Functions calculate the dot product of two vectors, overloaded in cases where only a scalar is returned
+__global__ void calculateDotProduct(double* result, double* inputOne, int xOne, int yOne, double* inputTwo, int xTwo, int yTwo);
+__global__ void calculateDotProduct(double result, double* inputOne, int xOne, int yOne, double* inputTwo, int xTwo, int yTwo);
 
 // Helper function for using CUDA to add vectors in parallel.
-cudaError_t cudaSetup(double* c, double* a, double* b, unsigned int size)
+cudaError_t cudaSetup(double* c, double* a, double* b, double* identityMatrix, unsigned int size)
 {
     double* deviceFirstInput = 0;
     double* deviceSecondInput = 0;
     double* deviceOutput = 0;
+    double* deviceIdentityMatrix = 0;
     cudaError_t cudaStatus;
     int memoryAllocationSize = pow(size, 2);
 
@@ -48,6 +53,12 @@ cudaError_t cudaSetup(double* c, double* a, double* b, unsigned int size)
     }
 
     // Allocate GPU buffers for three vectors (two input, one output)    .
+    cudaStatus = cudaMalloc((void**)&deviceIdentityMatrix, memoryAllocationSize * sizeof(double));
+    if (cudaStatus != cudaSuccess) {
+        fprintf(stderr, "cudaMalloc failed!");
+        goto Error;
+    }
+
     cudaStatus = cudaMalloc((void**)&deviceOutput, memoryAllocationSize * sizeof(double));
     if (cudaStatus != cudaSuccess) {
         fprintf(stderr, "cudaMalloc failed!");
@@ -79,12 +90,17 @@ cudaError_t cudaSetup(double* c, double* a, double* b, unsigned int size)
         goto Error;
     }
 
+    cudaStatus = cudaMemcpy(deviceIdentityMatrix, identityMatrix, memoryAllocationSize * sizeof(double), cudaMemcpyHostToDevice);
+    if (cudaStatus != cudaSuccess) {
+        fprintf(stderr, "cudaMemcpy failed!");
+        goto Error;
+    }
+
     // Launch a kernel on the GPU with one thread for each element.
-    //addKernel << <size, size >> > (deviceOutput, deviceFirstInput, deviceSecondInput);
     double firstInputMean = calculateAverage(a, size);
     double secondInputMean = calculateAverage(b, size);
-    covarianceHelper <<<size, size>>> (deviceOutput, deviceFirstInput, firstInputMean, deviceSecondInput, secondInputMean, size);
-    //printWithGPU << <size, size >> > (deviceFirstInput, size);
+    calculateCovariance <<<size, size>>> (deviceOutput, deviceFirstInput, firstInputMean, deviceSecondInput, secondInputMean, size);
+    
     // Check for any errors launching the kernel
     cudaStatus = cudaGetLastError();
     if (cudaStatus != cudaSuccess) {
@@ -102,7 +118,7 @@ cudaError_t cudaSetup(double* c, double* a, double* b, unsigned int size)
     }
 
     // Copy output vector from GPU buffer to host memory.
-    cudaStatus = cudaMemcpy(c, deviceOutput, size * size * sizeof(double), cudaMemcpyDeviceToHost);
+    cudaStatus = cudaMemcpy(c, deviceOutput, memoryAllocationSize * sizeof(double), cudaMemcpyDeviceToHost);
     if (cudaStatus != cudaSuccess) {
         fprintf(stderr, "cudaMemcpy failed!");
         goto Error;
@@ -112,6 +128,7 @@ Error:
     cudaFree(deviceOutput);
     cudaFree(deviceFirstInput);
     cudaFree(deviceSecondInput);
+    cudaFree(deviceIdentityMatrix);
 
     return cudaStatus;
 }
@@ -122,7 +139,7 @@ __global__ void printWithGPU(double* matrix, int dimension) {
     return;
 }
 
-__global__ void covarianceHelper(double* outputMatrix, double* X, double meanX, double* Y, double meanY, int dimension) {
+__global__ void calculateCovariance(double* outputMatrix, double* X, double meanX, double* Y, double meanY, int dimension) {
     int i = threadIdx.x;
     int j = blockIdx.x;
     int index = i + (j * dimension);
@@ -148,7 +165,70 @@ double calculateAverage(double inputMatrix[], int dimension) {
     return meanVal;
 }
 
-__global__ void nonDiagNormalize(double* firstInput, double* secondInput, int n, int i) { 
+__global__ void nonDiagNormalize(double* inputMatrix, double* identityMatrix, int n, int i) { 
+    int x = blockIdx.x * blockDim.x + threadIdx.x;
+    int y = blockIdx.y * blockDim.y + threadIdx.y;
 
+    if ((x < n) && (y < n)) {
+        if ((x == i) && (x != y)) {
+            identityMatrix[x * n + y] /= inputMatrix[i * n + i];
+            inputMatrix[x * n + y] /= inputMatrix[i * n + i];
+        }
+    }
     return; 
 }
+
+__global__ void diagNormalize(double* inputMatrix, double* identityMatrix, int n, int i) {
+    int x = blockIdx.x * blockDim.x + threadIdx.x;
+    int y = blockIdx.y * blockDim.y + threadIdx.y;
+    
+    if ((x < n) && (y < n)) {
+        if ((x == i) && (x != y)) {
+            identityMatrix[x * n + y] /= inputMatrix[i * n + i];
+            inputMatrix[x * n + y] /= A[i * n + i];
+        }
+    }
+
+    return;
+}
+
+__global__ void gaussJordan(double* inputMatrix, double* identityMatrix, int n, int i) {
+    int x = blockIdx.x * blockDim.x + threadIdx.x;
+    int y = blockIdx.y * blockDim.y + threadIdx.y;
+
+    if ((x < n) && (y < n)) {
+        if (x != i) {
+            identityMatrix[x * n + y] -= identityMatrix[i * n + y] * inputMatrix[x * n + i];
+            if (y != i) {
+                inputMatrix[x * n + y] -= A[i * n + y] * inputMatrix[x * n + i];
+            }
+        }
+    }
+
+    return;
+}
+
+__global__ void setZero(double* inputMatrix, double* identityMatrix, int n, int i) {
+    int x = blockIdx.x * blockDim.x + threadIdx.x;
+    int y = blockIdx.y * blockDim.y + threadIdx.y;
+
+    if ((x < n) && (y < n)) {
+        if (x != i) {
+            if (y != i) {
+                inputMatrix[x * n + y] = 0;
+            }
+        }
+    }
+
+    return;
+}
+
+__global__ void calculateKrigingEstimator(double* result, double* covarianceMatrix, double* sampleMatrix) {
+    int x = blockIdx.x * blockDim.x + threadIdx.x;
+    int y = blockIdx.y * blockDim.y + threadIdx.y;
+
+
+
+    return;
+}
+
