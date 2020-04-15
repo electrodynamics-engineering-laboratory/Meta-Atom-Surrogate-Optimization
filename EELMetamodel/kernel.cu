@@ -20,10 +20,10 @@ int main()
     double a[arraySize] = { 1, 2, 3, 4 };
     double b[arraySize] = { 10, 20, 30, 40};
     double c[arraySize] = { 5 };
-
+    cudaError_t cudaStatus = cudaSuccess;
     
     // Add vectors in parallel.
-    cudaError_t cudaStatus = cudaSetup(c, a, b, sqrt(arraySize));
+    //cudaStatus = cudaSetup(c, a, b, sqrt(arraySize));
     if (cudaStatus != cudaSuccess) {
         fprintf(stderr, "Kernel failed!");
         return 1;
