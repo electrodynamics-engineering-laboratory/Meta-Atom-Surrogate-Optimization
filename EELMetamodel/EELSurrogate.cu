@@ -28,10 +28,10 @@ Output: a value that is any error that the GPU experienced upon attempting calcu
 cudaError_t metamodelSetup(std::complex<double>* outputValue, int dimension, std::complex<double> theta, std::complex<double> variance, std::complex<double> a, std::complex<double>* designSite, std::complex<double>* testSite, std::complex<double>* designSiteValues );
 
 //Function sets up GPU for Gaussian Correlation calculations between two matrices
-cudaError_t calculateGaussianCorrelation(std::complex<double>* outputMatrix, std::complex<double> variance, std::complex<double> a, std::complex<double> theta, std::complex<double>* inMatrixOne, std::complex<double>* inMatrixTwo);
+cudaError_t calculateGaussianCorrelation(std::complex<double>* outputMatrix, std::complex<double>* inMatrix, std::complex<double> variance, std::complex<double> a, std::complex<double> theta, int dimension);
 
 //Function sets up GPU for calculating the distance between two matrices
-cudaError_t calculateDistanceBetweenMatrices(std::complex<double>* outputMatrix, std::complex<double>* inMatrixOne, std::complex<double>* inMatrixTwo);
+cudaError_t calculateDistanceBetweenMatrices(std::complex<double>* outputMatrix, std::complex<double>* inMatrixOne, std::complex<double>* inMatrixTwo, int dimension);
 
 //Function sets up GPU for calculating the weights vector
 cudaError_t calculateWeightVector(std::complex<double>* outputVector, std::complex<double>* invertedCovarianceMatrix, std::complex<double>*);
@@ -47,7 +47,10 @@ void createIdentityMatrix(std::complex<double>* matrix);
 __global__ void calcDistanceBetMat(std::complex<double>* outMat, std::complex<double>* inMatOne, std::complex<double>* inMatTwo, int dimension);
 
 //CUDA function to calculate the Gaussian Correlation of two matrices
-__global__ void calculateGaussCorr(std::complex<double>* outMat, std::complex<double>* inMatOne, std::complex<double>* inMatTwo);
+__global__ void calcGaussCorr(std::complex<double>* outMat, std::complex<double>* inMat, int dimension, std::complex<double> variance, std::complex<double> a, std::complex<double> theta);
+
+//CUDA function to normalize a given matrix to a value
+__global__ void normalizeMatrix(std::complex<double>* outMat, std::complex<double>* inMat, std::complex<double> normalizingValue);
 
 //CUDA functions to calculate the inverse of a given matrix using Gauss-Jordan elimination method
 __global__ void nonDiagNormalize(std::complex<double>* inputMatrix, std::complex<double>* identityMatrix, int n, int i);
@@ -56,6 +59,114 @@ __global__ void gaussJordan(std::complex<double>* inputMatrix, std::complex<doub
 __global__ void setZero(std::complex<double>* inputMatrix, std::complex<double>* identityMatrix, int n, int i);
 
 //Begin Function Implementations
+cudaError_t calculateDistanceBetweenMatrices(std::complex<double>* outputMatrix, std::complex<double>* inMatrixOne, std::complex<double>* inMatrixTwo, int dimension) {
+    std::complex<double>* deviceOutMat = 0;
+    std::complex<double>* deviceInMatOne = 0;
+    std::complex<double>* deviceInMatTwo = 0;
+    cudaError_t cudaStatus = cudaSuccess;
+    int matrixMemoryAllocationSize = pow(dimension, 2);
+    
+    //Begin allocation of memory on device
+    cudaStatus = cudaMalloc((void**)&deviceOutMat, matrixMemoryAllocationSize * sizeof(std::complex<double>));
+    if (cudaStatus != cudaSuccess) {
+        goto DistError;
+    }
+
+    cudaStatus = cudaMalloc((void**)&deviceInMatOne, matrixMemoryAllocationSize * sizeof(std::complex<double>));
+    if (cudaStatus != cudaSuccess) {
+        goto DistError;
+    }
+
+    cudaStatus = cudaMalloc((void**)&deviceInMatTwo, matrixMemoryAllocationSize * sizeof(std::complex<double>));
+    if (cudaStatus != cudaSuccess) {
+        goto DistError;
+    }
+
+    //Begin copy of CPU local data to GPU
+    cudaStatus = cudaMemcpy(deviceInMatOne, inMatrixOne, matrixMemoryAllocationSize * sizeof(std::complex<double>), cudaMemcpyHostToDevice);
+    if (cudaStatus != cudaSuccess) {
+        goto DistError;
+    }
+
+    cudaStatus = cudaMemcpy(deviceInMatTwo, inMatrixTwo, matrixMemoryAllocationSize * sizeof(std::complex<double>), cudaMemcpyHostToDevice);
+    if (cudaStatus != cudaSuccess) {
+        goto DistError;
+    }
+
+    //Perform calculation on the GPU and catch any error
+    calcDistanceBetMat <<< dimension, dimension >>> (deviceOutMat, deviceInMatOne, deviceInMatTwo, dimension);
+    cudaStatus = cudaGetLastError();
+    if (cudaStatus != cudaSuccess) {
+        goto DistError;
+    }
+
+    //Synchronize device to enable a copy of the result
+    cudaStatus = cudaDeviceSynchronize();
+    if (cudaStatus != cudaSuccess) {
+        goto DistError;
+    }
+
+    //Copy data from GPU address to CPU address
+    cudaStatus = cudaMemcpy(outputMatrix, deviceOutMat, matrixMemoryAllocationSize * sizeof(std::complex<double>), cudaMemcpyDeviceToHost);
+    if (cudaStatus != cudaSuccess) {
+        goto DistError;
+    }
+
+DistError:
+    cudaFree(deviceOutMat);
+    cudaFree(deviceInMatOne);
+    cudaFree(deviceInMatTwo);
+
+    return cudaStatus;
+}
+
+cudaError_t calculateGaussianCorrelation(std::complex<double>* outputMatrix, std::complex<double>* inMatrix, std::complex<double> variance, std::complex<double> a, std::complex<double> theta, int dimension) {
+    std::complex<double>* deviceOutVal = 0;
+    std::complex<double>* deviceInMat = 0;
+    cudaError_t cudaStatus = cudaSuccess;
+    int matrixMemoryAllocationSize = pow(dimension, 2);
+    int vectorMemoryAllocationSize = dimension;
+
+    cudaStatus = cudaMalloc((void**)&deviceOutVal, matrixMemoryAllocationSize * sizeof(std::complex<double>));
+    if (cudaStatus != cudaSuccess) {
+        goto CorrError;
+    }
+
+    cudaStatus = cudaMalloc((void**)&deviceInMat, matrixMemoryAllocationSize * sizeof(std::complex<double>));
+    if (cudaStatus != cudaSuccess) {
+        goto CorrError;
+    }
+    
+    cudaStatus = cudaMemcpy(deviceInMat, inMatrix, matrixMemoryAllocationSize * sizeof(std::complex<double>), cudaMemcpyHostToDevice);
+    if (cudaStatus != cudaSuccess) {
+        goto CorrError;
+    }
+
+    //Perform calculation on the GPU and catch any error
+    calcGaussCorr <<< dimension, dimension >>> (deviceOutMat, deviceInMatOne, deviceInMatTwo, dimension);
+    cudaStatus = cudaGetLastError();
+    if (cudaStatus != cudaSuccess) {
+        goto CorrError;
+    }
+
+    //Synchronize device to enable a copy of the result
+    cudaStatus = cudaDeviceSynchronize();
+    if (cudaStatus != cudaSuccess) {
+        goto CorrError;
+    }
+    
+    cudaStatus = cudaMemcpy(outputMatrix, deviceOutVal, matrixMemoryAllocationSize * sizeof(std::complex<double>), cudaMemcpyDeviceToHost);
+    if (cudaStatus != cudaSuccess) {
+        goto CorrError;
+    }
+
+CorrError:
+    cudaFree(deviceOutVal);
+    cudaFree(deviceInMat);
+
+    return cudaStatus;
+}
+
 cudaError_t metamodelSetup(std::complex<double>* outputValue, int dimension, std::complex<double> theta, std::complex<double> variance, std::complex<double> a, std::complex<double>* designSite, std::complex<double>* testSite, std::complex<double>* designSiteValues) {
     
     //Begin variable definitions for data to be passed to GPU
@@ -68,25 +179,65 @@ cudaError_t metamodelSetup(std::complex<double>* outputValue, int dimension, std
     int matrixMemoryAllocationSize = pow(dimension, 2);
     int vectorMemoryAllocationSize = dimension;
 
-    //Create a dynamic allocation of memory for the identity matrix
+    //Create a dynamic allocation of memory for the identity matrix and populate with values
     std::complex<double>* identityMatrix = (std::complex<double>*) malloc(matrixMemoryAllocationSize * sizeof(std::complex<double>));
+    for (int i = 0; i < dimension; i++) {
+        for (int j = 0; j < dimension; j++) {
+            if (i == j) {
+                identityMatrix[i + j * dimension] = 1;
+            }
+            else {
+                identityMatrix[i + j * dimension] = 0;
+            }
+        }
+    }
+
+    //Create a dynamic allocation of memory for a temporary holding matrix
+    std::complex<double>* tempMatrix = (std::complex<double>*) malloc(matrixMemoryAllocationSize * sizeof(std::complex<double>));
+    for (int i = 0; i < pow(dimension,2); i++) {
+        tempMatrix[i] = 0;
+    }
 
     // Choose which GPU to run on, change this on a multi-GPU system.
     cudaStatus = cudaSetDevice(0);
     if (cudaStatus != cudaSuccess){
-        goto Error;
+        goto SetupError;
     }
 
     //Begin GPU memory allocation
+
+    //Allocate GPU memory for the identity matrix
     cudaStatus = cudaMalloc((void**)&deviceIdentityMatrix, matrixMemoryAllocationSize * sizeof(std::complex<double>));
     if (cudaStatus != cudaSuccess) {
-        goto Error;
+        goto SetupError;
     }
 
+    //Allocate GPU memory for the test site matrix
+    cudaStatus = cudaMalloc((void**)&deviceTestSite, matrixMemoryAllocationSize * sizeof(std::complex<double>));
+    if (cudaStatus != cudaSuccess) {
+        goto SetupError;
+    }
 
+    //Allocate GPU memory for the design site values
+    cudaStatus = cudaMalloc((void**)&deviceDesignSiteValues, matrixMemoryAllocationSize * sizeof(std::complex<double>));
+    if (cudaStatus != cudaSuccess) {
+        goto SetupError;
+    }
+
+    //Allocate GPU memory for the design site matrix
+    cudaStatus = cudaMalloc((void**)&deviceDesignSite, matrixMemoryAllocationSize * sizeof(std::complex<double>));
+    if (cudaStatus != cudaSuccess) {
+        goto SetupError;
+    }
+
+    //Allocate GPU memory for the output matrix
+    cudaStatus = cudaMalloc((void**)&deviceOutVal, matrixMemoryAllocationSize * sizeof(std::complex<double>));
+    if (cudaStatus != cudaSuccess) {
+        goto SetupError;
+    }
 
     //Define error state
-Error:
+SetupError:
     cudaFree(deviceOutVal);
     cudaFree(deviceDesignSite);
     cudaFree(deviceDesignSiteValues);
@@ -97,6 +248,24 @@ Error:
 }
 
 //Begin CUDA Function Implementations
+__global__ void calcDistanceBetMat(std::complex<double>* outMat, std::complex<double>* inMatOne, std::complex<double>* inMatTwo, int dimension) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    int j = blockIdx.y * blockDim.y + threadIdx.y;
+
+    outMat[i + j * dimension] = std::pow(std::abs(inMatOne[i + j * dimension] - inMatTwo[i + j * dimension]),2);
+    return;
+}
+
+__global__ void calcGaussCorr(std::complex<double>* outMat, std::complex<double>* inMat, int dimension, std::complex<double> variance, std::complex<double> a, std::complex<double> theta) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    int j = blockIdx.y * blockDim.y + threadIdx.y;
+    std::complex<double> negOne(-1, 0);
+
+    outMat[i + j * dimension] = (variance - a) * std::exp(negOne * theta * inMat[i + j * dimension]);
+
+    return;
+}
+
 __global__ void nonDiagNormalize(std::complex<double>* inputMatrix, std::complex<double>* identityMatrix, int n, int i) {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;

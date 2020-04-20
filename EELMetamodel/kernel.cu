@@ -11,6 +11,7 @@ Purpose: This file is for the purposes of writing Metamodel test code.
 #include <stdio.h>
 #include <math.h>
 #include <iostream>
+#include <complex>
 
 void printMatrix(double inArray[], int dimension);
 
