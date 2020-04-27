@@ -39,14 +39,14 @@ cudaError_t calculateDistanceBetweenMatrixVector(std::complex<double>* outputMat
 //Function sets up GPU for calculating the weights vector
 cudaError_t calculateWeightVector(std::complex<double>* outputVector, std::complex<double>* invertedCovarianceMatrix, std::complex<double>* covarianceVector, int dimension);
 
+//Function sets up GPU for extending a matrix
+cudaError_t extendMatrix(std::complex<double>* outputMatrix, std::complex<double>* inputMatrix, int dimension);
+
 //Function sets up GPU for calculating the inverse of a matrix using Gauss-Jordan elimination
 cudaError_t invertMatrix(std::complex<double>* outputMatrix, std::complex<double>* inputMatrix, int dimension);
 
-//Function sets up GPU for extending a matrix
-cudaError_t extendMatrix(std::complex<double>* matrix, int dimension);
-
 //Function sets the given matrix to the identity matrix
-void createIdentityMatrix(std::complex<double>* matrix);
+cudaError_t createIdentityMatrix(std::complex<double>* matrix);
 
 //Begin GPU Function Definitions
 //CUDA function to calculate distance between two matrices
@@ -71,7 +71,7 @@ __global__ void gaussJordan(std::complex<double>* inputMatrix, std::complex<doub
 __global__ void setZero(std::complex<double>* inputMatrix, std::complex<double>* identityMatrix, int n, int i);
 
 //CUDA function to calculate the dot product of two inputs
-__global__ void calcDotProduct(std::complex<double>* output, std::complex<double>* firInput, std::complex<double>* secInput, int dimension);
+__global__ void multiplyMatrix(std::complex<double>* output, std::complex<double>* firInput, std::complex<double>* secInput, int dimension);
 
 //Begin Function Implementations
 cudaError_t metamodelSetup(std::complex<double>* outputValue, int dimension, std::complex<double> theta, std::complex<double> variance, std::complex<double> a, std::complex<double>* designSite, std::complex<double>* testSite, std::complex<double>* designSiteValues) {
@@ -323,10 +323,10 @@ VecDistError:
     return cudaStatus;
 }
 
-cudaError_t calculateWeightVector(std::complex<double>* outputVector, std::complex<double>* invertedCovarianceMatrix, std::complex<double>* covarianceVector, int dimension) {
+cudaError_t calculateWeightVector(std::complex<double>* outputVectorMatrix, std::complex<double>* invertedCovarianceMatrix, std::complex<double>* covarianceVectorMatrix, int dimension) {
     std::complex<double>* deviceOutMat = 0;
     std::complex<double>* deviceInvCovMat = 0;
-    std::complex<double>* deviceCovVec = 0;
+    std::complex<double>* deviceCovVecMat = 0;
     cudaError_t cudaStatus = cudaSuccess;
     int matrixMemoryAllocationSize = pow(dimension, 2);
     int vectorMemoryAllocationSize = dimension;
@@ -342,7 +342,7 @@ cudaError_t calculateWeightVector(std::complex<double>* outputVector, std::compl
         goto WeightError;
     }
 
-    cudaStatus = cudaMalloc((void**)&deviceCovVec, vectorMemoryAllocationSize * sizeof(std::complex<double>));
+    cudaStatus = cudaMalloc((void**)&deviceCovVecMat, vectorMemoryAllocationSize * sizeof(std::complex<double>));
     if (cudaStatus != cudaSuccess) {
         goto WeightError;
     }
@@ -353,12 +353,12 @@ cudaError_t calculateWeightVector(std::complex<double>* outputVector, std::compl
         goto WeightError;
     }
 
-    cudaStatus = cudaMemcpy(deviceCovVec, covarianceVector, vectorMemoryAllocationSize * sizeof(std::complex<double>), cudaMemcpyHostToDevice);
+    cudaStatus = cudaMemcpy(deviceCovVecMat, covarianceVectorMatrix, vectorMemoryAllocationSize * sizeof(std::complex<double>), cudaMemcpyHostToDevice);
     if (cudaStatus != cudaSuccess) {
         goto WeightError;
     }
 
-    //CALL WEIGHT CALCULATION HERE
+    multiplyMatrix<<<dimension, dimension>>>(deviceOutMat, deviceInvCovMat, deviceCovVecMat)
     cudaStatus = cudaGetLastError();
     if (cudaStatus != cudaSuccess) {
         goto WeightError;
@@ -369,7 +369,7 @@ cudaError_t calculateWeightVector(std::complex<double>* outputVector, std::compl
         goto WeightError;
     }
 
-    cudaStatus = cudaMemcpy(outputVector, deviceOutMat, matrixMemoryAllocationSize * sizeof(std::complex<double>), cudaMemcpyDeviceToHost);
+    cudaStatus = cudaMemcpy(outputVectorMatrix, deviceOutMat, matrixMemoryAllocationSize * sizeof(std::complex<double>), cudaMemcpyDeviceToHost);
     if (cudaStatus != cudaSuccess) {
         goto WeightError;
     }
@@ -378,7 +378,7 @@ cudaError_t calculateWeightVector(std::complex<double>* outputVector, std::compl
 WeightError:
     cudaFree(deviceOutMat);
     cudaFree(deviceInvCovMat);
-    cudaFree(deviceCovVec);
+    cudaFree(deviceCovVecMat);
 
     return cudaStatus;
 }
@@ -406,24 +406,77 @@ cudaError_t extendMatrix(std::complex<double>* outputMatrix, std::complex<double
         goto ExtendError;
     }
 
+    //Perform calculation on the GPU and catch any error
     extendMat <<<dimension + 1, dimension + 1 >>> (deviceOutMat, deviceInMat, dimension);
     cudaStatus = cudaGetLastError();
     if (cudaStatus != cudaSuccess) {
         goto ExtendError;
     }
 
+    //Synchronize device to enable a copy of the result
     cudaStatus = cudaDeviceSynchronize();
     if (cudaStatus != cudaSuccess) {
         goto ExtendError;
     }
 
-    cudaStatus = cudaMemcpy(deviceOutMat, outputMatrix, matrixMemoryAllocationSize * sizeof(std::complex<double>), cudaMemcpyHostToDevice);
+    //Copy data from GPU address to CPU address
+    cudaStatus = cudaMemcpy(outputMatrix, deviceOutMat, matrixMemoryAllocationSize * sizeof(std::complex<double>), cudaMemcpyDeviceToHost);
     if (cudaStatus != cudaSuccess) {
         goto ExtendError;
     }
 
 ExtendError:
     cudaFree(deviceOutMat);
+    cudaFree(deviceInMat);
+
+    return cudaStatus;
+}
+
+cudaError_t invertMatrix(std::complex<double>* outputMatrix, std::complex<double>* inputMatrix, int dimension) {
+    std::complex<double>* deviceInMat = 0;
+    std::complex<double>* deviceIdenMat = 0;
+    cudaError_t cudaStatus = cudaSuccess;
+    int matrixMemoryAllocationSize = pow(dimension, 2);
+
+    cudaStatus = cudaMalloc((void**)&deviceInMat, matrixMemoryAllocationSize * sizeof(std::complex<double>));
+    if (cudaStatus != cudaSuccess) {
+        goto InvertError;
+    }
+
+    cudaStatus = cudaMalloc((void**)&deviceIdenMat, matrixMemoryAllocationSize * sizeof(std::complex<double>));
+    if (cudaStatus != cudaSuccess) {
+        goto InvertError;
+    }
+
+    cudaStatus = cudaMemcpy(deviceInMat, inputMatrix, matrixMemoryAllocationSize * sizeof(std::complex<double>), cudaMemcpyHostToDevice);
+    if (cudaStatus != cudaSuccess) {
+        goto InvertError;
+    }
+
+    cudaStatus = cudaMemcpy(deviceIdenMat, outputMatrix, matrixMemoryAllocationSize * sizeof(std::complex<double>), cudaMemcpyHostToDevice);
+    if (cudaStatus != cudaSuccess) {
+        goto InvertError;
+    }
+
+    for (int i = 0; i < dimension; i++) {
+        nonDiagNormalize<<<dimension, dimension>>> (deviceInMat inputMatrix, std::complex<double> * identityMatrix, int n, int i);
+        diagNormalize <<<dimension, dimension >>> (std::complex<double> * inputMatrix, std::complex<double> * identityMatrix, int n, int i);
+        gaussJordan <<<dimension, dimension >>> (std::complex<double> * inputMatrix, std::complex<double> * identityMatrix, int n, int i);
+        setZero <<<dimension, dimension >>> (std::complex<double> * inputMatrix, std::complex<double> * identityMatrix, int n, int i);
+    }
+
+    cudaStatus = cudaMemcpy(outputMatrix, deviceIdenMat, matrixMemoryAllocationSize * sizeof(std::complex<double>), cudaMemcpyDeviceToHost);
+    if (cudaStatus != cudaSuccess) {
+        goto InvertError;
+    }
+
+    cudaStatus = cudaMemcpy(inputMatrix, deviceInMat, matrixMemoryAllocationSize * sizeof(std::complex<double>), cudaMemcpyDeviceToHost);
+    if (cudaStatus != cudaSuccess) {
+        goto InvertError;
+    }
+
+InvertError:
+    cudaFree(deviceIdenMat);
     cudaFree(deviceInMat);
 
     return cudaStatus;
@@ -514,11 +567,42 @@ __global__ void setZero(std::complex<double>* inputMatrix, std::complex<double>*
     return;
 }
 
-__global__ void calcDotProduct(std::complex<double>* output, std::complex<double>* firInput, std::complex<double>* secInput, int dimension) {
+__global__ void multiplyMatrix(std::complex<double>* output, std::complex<double>* firInput, std::complex<double>* secInput, int dimension) {
+    int x = blockIdx.x;
+    int y = threadIdx.x;
+
+    //Multiple each element pair and then sum them together
+    for (int i = 0; i < dimension; i++) {
+        output[x + y * dimension] += firInput[i + y * dimension] * secInput[x + i * dimension];
+    }
+
+    return;
+}
+
+__global__ void extendMat(std::complex<double>* outMat, std::complex<double>* inMat, int dimension) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     int j = blockIdx.y * blockDim.y + threadIdx.y;
 
+    //If both i & j equal dimension, the current index is the corner which should be set to zero
+    if (i == dimension && j == dimension) {
+        outMat[i + j * (dimension + 1)] = 0;
+    }
+    //If i or j are equal to dimension, the current index is the right or bottom edge of the matrix which should be set to one
+    else if (i == dimension || j == dimension) {
+        outMat[i + j * (dimension + 1)] = 1;
+    }
+    //Otherwise, simply copy the value over to the output matrix
+    else {
+        outMat[i + j * (dimension + 1)] = inMat[i + j * (dimension)];
+    }
+    return;
+}
 
-    output[i + j * dimension] = firInput[i + j * dimension];
+__global__ void normalizeMatrix(std::complex<double>* outMat, std::complex<double>* inMat, std::complex<double> normalizingValue, int dimension) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    int j = blockIdx.y * blockDim.y + threadIdx.y;
 
+    outMat[i + j * dimension] = inMat[i + j * dimension] / normalizingValue;
+
+    return;
 }
