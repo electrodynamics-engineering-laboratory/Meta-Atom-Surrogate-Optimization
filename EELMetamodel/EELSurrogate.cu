@@ -46,7 +46,7 @@ cudaError_t extendMatrix(std::complex<double>* outputMatrix, std::complex<double
 cudaError_t invertMatrix(std::complex<double>* outputMatrix, std::complex<double>* inputMatrix, int dimension);
 
 //Function sets the given matrix to the identity matrix
-cudaError_t createIdentityMatrix(std::complex<double>* matrix);
+cudaError_t createIdentityMatrix(std::complex<double>* matrix, int dimension);
 
 //Begin GPU Function Definitions
 //CUDA function to calculate distance between two matrices
@@ -72,6 +72,9 @@ __global__ void setZero(std::complex<double>* inputMatrix, std::complex<double>*
 
 //CUDA function to calculate the dot product of two inputs
 __global__ void multiplyMatrix(std::complex<double>* output, std::complex<double>* firInput, std::complex<double>* secInput, int dimension);
+
+//CUDA function to create an identity matrix of the given dimension
+__global__ void createIdentMat(std::complex<double>* matrix, int dimension);
 
 //Begin Function Implementations
 cudaError_t metamodelSetup(std::complex<double>* outputValue, int dimension, std::complex<double> theta, std::complex<double> variance, std::complex<double> a, std::complex<double>* designSite, std::complex<double>* testSite, std::complex<double>* designSiteValues) {
@@ -459,10 +462,14 @@ cudaError_t invertMatrix(std::complex<double>* outputMatrix, std::complex<double
     }
 
     for (int i = 0; i < dimension; i++) {
-        nonDiagNormalize<<<dimension, dimension>>> (deviceInMat inputMatrix, std::complex<double> * identityMatrix, int n, int i);
-        diagNormalize <<<dimension, dimension >>> (std::complex<double> * inputMatrix, std::complex<double> * identityMatrix, int n, int i);
-        gaussJordan <<<dimension, dimension >>> (std::complex<double> * inputMatrix, std::complex<double> * identityMatrix, int n, int i);
-        setZero <<<dimension, dimension >>> (std::complex<double> * inputMatrix, std::complex<double> * identityMatrix, int n, int i);
+        nonDiagNormalize<<<dimension, dimension>>> (deviceInMat, deviceIdenMat, dimension, i);
+        diagNormalize <<<dimension, dimension >>> (deviceInMat, deviceIdenMat, dimension, i);
+        gaussJordan <<<dimension, dimension >>> (deviceInMat, deviceIdenMat, dimension, i);
+        setZero <<<dimension, dimension >>> (deviceInMat, deviceIdenMat, dimension, i);
+    }
+    cudaStatus = cudaGetLastError();
+    if (cudaStatus != cudaSuccess) {
+        goto InvertError;
     }
 
     cudaStatus = cudaMemcpy(outputMatrix, deviceIdenMat, matrixMemoryAllocationSize * sizeof(std::complex<double>), cudaMemcpyDeviceToHost);
@@ -478,6 +485,38 @@ cudaError_t invertMatrix(std::complex<double>* outputMatrix, std::complex<double
 InvertError:
     cudaFree(deviceIdenMat);
     cudaFree(deviceInMat);
+
+    return cudaStatus;
+}
+
+cudaError_t createIdentityMatrix(std::complex<double>* matrix, int dimension) {
+    std::complex<double>* deviceMat = 0;
+    cudaError_t cudaStatus = cudaSuccess;
+    int matrixMemoryAllocationSize = pow(dimension, 2);
+
+    cudaStatus = cudaMalloc((void**)&deviceMat, matrixMemoryAllocationSize * sizeof(std::complex<double>));
+    if (cudaStatus != cudaSuccess) {
+        goto IdentityError;
+    }
+
+    cudaStatus = cudaMemcpy(deviceMat, matrix, matrixMemoryAllocationSize * sizeof(std::complex<double>), cudaMemcpyHostToDevice);
+    if (cudaStatus != cudaSuccess) {
+        goto IdentityError;
+    }
+
+    createIdentMat <<<dimension, dimension >> > (deviceMat, dimension);
+    cudaStatus = cudaGetLastError();
+    if (cudaStatus != cudaSuccess) {
+        goto IdentityError;
+    }
+
+    cudaStatus = cudaMemcpy(matrix, deviceMat, matrixMemoryAllocationSize * sizeof(std::complex<double>), cudaMemcpyDeviceToHost);
+    if (cudaStatus != cudaSuccess) {
+    }
+
+
+IdentityError:
+    cudaFree(deviceMat);
 
     return cudaStatus;
 }
@@ -603,6 +642,20 @@ __global__ void normalizeMatrix(std::complex<double>* outMat, std::complex<doubl
     int j = blockIdx.y * blockDim.y + threadIdx.y;
 
     outMat[i + j * dimension] = inMat[i + j * dimension] / normalizingValue;
+
+    return;
+}
+
+__global__ void createIdentMat(std::complex<double>* matrix, int dimension) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    int j = blockIdx.y * blockDim.y + threadIdx.y;
+
+    if (i == j) {
+        matrix[i + j * dimension] = 1;
+    }
+    else {
+        matrix[i + j * dimension] = 0;
+    }
 
     return;
 }
