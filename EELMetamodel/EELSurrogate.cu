@@ -27,7 +27,7 @@ Output: a value that is any error that the GPU experienced upon attempting calcu
 //Function sets up and performs calculations on the GPU
 cudaError_t metamodelSetup(std::complex<double>* outputValue, int dimension, std::complex<double> theta, std::complex<double> variance, std::complex<double> a, std::complex<double>* designSite, std::complex<double>* testSite, std::complex<double>* designSiteValues );
 
-//Function sets up GPU for Gaussian Correlation calculations between two matrices
+//Function sets up GPU for covariance calculations between two matrices through Gaussian Correlation 
 cudaError_t calculateGaussianCorrelation(std::complex<double>* outputMatrix, std::complex<double>* inMatrix, std::complex<double> variance, std::complex<double> a, std::complex<double> theta, int dimension);
 
 //Function sets up GPU for calculating the distance between two matrices
@@ -80,32 +80,21 @@ __global__ void createIdentMat(std::complex<double>* matrix, int dimension);
 cudaError_t metamodelSetup(std::complex<double>* outputValue, int dimension, std::complex<double> theta, std::complex<double> variance, std::complex<double> a, std::complex<double>* designSite, std::complex<double>* testSite, std::complex<double>* designSiteValues) {
     
     //Begin variable definitions for data to be passed to GPU
-    std::complex<double>* deviceOutVal = 0;
-    std::complex<double>* deviceDesignSite = 0;
-    std::complex<double>* deviceDesignSiteValues = 0;
-    std::complex<double>* deviceTestSite = 0;
-    std::complex<double>* deviceIdentityMatrix = 0;
     cudaError_t cudaStatus = cudaSuccess;
-    int matrixMemoryAllocationSize = pow(dimension, 2);
-    int vectorMemoryAllocationSize = dimension;
+    int matrixMemoryAllocationSize = pow(dimension+1, 2);
+    int extendedMatrixMemoryAllocationSize = pow(dimension+1, 2);
+    int vectorMemoryAllocationSize = dimension+1;
+    int extendedVectorMemoryAllocationSize = dimension + 1;
 
     //Create a dynamic allocation of memory for the identity matrix and populate with values
     std::complex<double>* identityMatrix = (std::complex<double>*) malloc(matrixMemoryAllocationSize * sizeof(std::complex<double>));
-    for (int i = 0; i < dimension; i++) {
-        for (int j = 0; j < dimension; j++) {
-            if (i == j) {
-                identityMatrix[i + j * dimension] = 1;
-            }
-            else {
-                identityMatrix[i + j * dimension] = 0;
-            }
-        }
-    }
-
+    
     //Create a dynamic allocation of memory for a temporary holding matrix
-    std::complex<double>* tempMatrix = (std::complex<double>*) malloc(matrixMemoryAllocationSize * sizeof(std::complex<double>));
+    std::complex<double>* tempMatrixOne = (std::complex<double>*) malloc(extendedMatrixMemoryAllocationSize * sizeof(std::complex<double>));
+    std::complex<double>* tempMatrixTwo = (std::complex<double>*) malloc(extendedMatrixMemoryAllocationSize * sizeof(std::complex<double>));
     for (int i = 0; i < pow(dimension,2); i++) {
-        tempMatrix[i] = 0;
+        tempMatrixOne[i] = 0;
+        tempMatrixTwo[i] = 0;
     }
 
     // Choose which GPU to run on, change this on a multi-GPU system.
@@ -113,10 +102,9 @@ cudaError_t metamodelSetup(std::complex<double>* outputValue, int dimension, std
     if (cudaStatus != cudaSuccess){
         goto SetupError;
     }
-
-    //Begin GPU memory allocation
-
+    
     //Allocate GPU memory for the identity matrix
+    /*
     cudaStatus = cudaMalloc((void**)&deviceIdentityMatrix, matrixMemoryAllocationSize * sizeof(std::complex<double>));
     if (cudaStatus != cudaSuccess) {
         goto SetupError;
@@ -145,13 +133,46 @@ cudaError_t metamodelSetup(std::complex<double>* outputValue, int dimension, std
     if (cudaStatus != cudaSuccess) {
         goto SetupError;
     }
+    */
+
+    //Calculate distance between design sites and values at design sites. tempMatrixOne will hold the output
+    cudaStatus = calculateDistanceBetweenMatrices(tempMatrixOne, designSite, designSiteValues, dimension);
+    if (cudaStatus != cudaSuccess) {
+        goto SetupError;
+    }
+
+    //Calculate distance between test site and design site. tempMatrixTwo will hold the output
+    cudaStatus = calculateDistanceBetweenMatrixVector(tempMatrixTwo, designSite, testSite, dimension);
+    if (cudaStatus != cudaSuccess) {
+        goto SetupError;
+    }
+    
+    //Calculate the covariance between design sites and values at design sites. tempMatrixOne will hold the output
+    cudaStatus = calculateGaussianCorrelation(tempMatrixOne, tempMatrixOne, variance, a, theta, dimension);
+    if (cudaStatus != cudaSuccess) {
+        goto SetupError;
+    }
+
+    //Calculate the covariance between test sites and design sites. tempMatrixTwo will hold the output
+    cudaStatus = calculateGaussianCorrelation(tempMatrixTwo, tempMatrixTwo, variance, a, theta, dimension);
+    if (cudaStatus != cudaSuccess) {
+        goto SetupError;
+    }
+
+    //Extend the covariance matrix between the design site and design site values
+    cudaStatus = extendMatrix(tempMatrixOne, tempMatrixOne, dimension + 1);
+    if (cudaStatus != cudaSuccess) {
+        goto SetupError;
+    }
+
+    //Calculate inverse of extended covariance matrix
+
+    //Calculate extended weights vector
+
+    //Calculate estimate value at test site, the ultimate output
 
     //Define error state
 SetupError:
-    cudaFree(deviceOutVal);
-    cudaFree(deviceDesignSite);
-    cudaFree(deviceDesignSiteValues);
-    cudaFree(deviceIdentityMatrix);
     free(identityMatrix);
 
     return cudaStatus;
@@ -512,6 +533,7 @@ cudaError_t createIdentityMatrix(std::complex<double>* matrix, int dimension) {
 
     cudaStatus = cudaMemcpy(matrix, deviceMat, matrixMemoryAllocationSize * sizeof(std::complex<double>), cudaMemcpyDeviceToHost);
     if (cudaStatus != cudaSuccess) {
+        goto IdentityError;
     }
 
 
