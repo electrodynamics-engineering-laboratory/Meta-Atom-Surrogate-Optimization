@@ -20,12 +20,12 @@ Input:  outputValue - (CURRENTLY UNKNOWN AND WILL CHANGE) a pointer to a value t
         theta - (THIS MIGHT BE AN INCORRECT DESCRIPTION) a value in radians that represents the angle between the two matrices, this value should only ever be real
         variance - the value of the variance between 
         designSite - a dimension-by-dimension matrix that represents the datapoints previously collected to be used to estimate a new value based on test site
-        testSite - a one-by-dimension vector that represents the points at which a new value is to be calculated
+        testSite - a dimension-by-dimension matrix with only the first column that make up the vector that represents the points at which a new value is to be calculated
         designSiteValues - a dimension-by-dimension matrix that represent the values at particular design sites. Each matrix has a 1-to-1 correlation of site to value (i.e. designSite[0] is paired with designSiteValues[0])
 Output: a value that is any error that the GPU experienced upon attempting calculations
 */
 //Function sets up and performs calculations on the GPU
-cudaError_t metamodelSetup(std::complex<double>* outputValue, int dimension, std::complex<double> theta, std::complex<double> variance, std::complex<double> a, std::complex<double>* designSite, std::complex<double>* testSite, std::complex<double>* designSiteValues );
+std::complex<double> metamodelSetup(int dimension, std::complex<double> theta, std::complex<double> variance, std::complex<double> a, std::complex<double>* designSite, std::complex<double>* testSite, std::complex<double>* designSiteValues );
 
 //Function sets up GPU for covariance calculations between two matrices through Gaussian Correlation 
 cudaError_t calculateGaussianCorrelation(std::complex<double>* outputMatrix, std::complex<double>* inMatrix, std::complex<double> variance, std::complex<double> a, std::complex<double> theta, int dimension);
@@ -47,6 +47,9 @@ cudaError_t invertMatrix(std::complex<double>* outputMatrix, std::complex<double
 
 //Function sets the given matrix to the identity matrix
 cudaError_t createIdentityMatrix(std::complex<double>* matrix, int dimension);
+
+//Function multiples two matrices
+cudaError_t multiplyMatrices(std::complex<double>* output, std::complex<double>* inputMatrix, int dimension);
 
 //Begin GPU Function Definitions
 //CUDA function to calculate distance between two matrices
@@ -77,7 +80,7 @@ __global__ void multiplyMatrix(std::complex<double>* output, std::complex<double
 __global__ void createIdentMat(std::complex<double>* matrix, int dimension);
 
 //Begin Function Implementations
-cudaError_t metamodelSetup(std::complex<double>* outputValue, int dimension, std::complex<double> theta, std::complex<double> variance, std::complex<double> a, std::complex<double>* designSite, std::complex<double>* testSite, std::complex<double>* designSiteValues) {
+std::complex<double> metamodelSetup(int dimension, std::complex<double> theta, std::complex<double> variance, std::complex<double> a, std::complex<double>* designSite, std::complex<double>* testSite, std::complex<double>* designSiteValues) {
     
     //Begin variable definitions for data to be passed to GPU
     cudaError_t cudaStatus = cudaSuccess;
@@ -135,6 +138,12 @@ cudaError_t metamodelSetup(std::complex<double>* outputValue, int dimension, std
     }
     */
 
+    //Create identity matrix on GPU, input is also the output
+    cudaStatus = createIdentityMatrix(identityMatrix, dimension);
+    if (cudaStatus != cudaSuccess) {
+        goto SetupError;
+    }
+
     //Calculate distance between design sites and values at design sites. tempMatrixOne will hold the output
     cudaStatus = calculateDistanceBetweenMatrices(tempMatrixOne, designSite, designSiteValues, dimension);
     if (cudaStatus != cudaSuccess) {
@@ -165,17 +174,32 @@ cudaError_t metamodelSetup(std::complex<double>* outputValue, int dimension, std
         goto SetupError;
     }
 
+    //Extend the covariance vector between test site and design sites. 
+    tempMatrixTwo[dimension + 0*dimension] = std::complex<double>(1,0); //Add 1 to the last row of the matrix, unclear if this is correct
+
     //Calculate inverse of extended covariance matrix
+    cudaStatus = invertMatrix(tempMatrixOne, tempMatrixOne, dimension + 1);
+    if (cudaStatus != cudaSuccess) {
+        goto SetupError;
+    }
 
-    //Calculate extended weights vector
+    //Calculate extended weights vector, tempMatrixTwo will hold the result
+    cudaStatus = calculateWeightVector(tempMatrixTwo, tempMatrixOne, tempMatrixTwo, dimension + 1);
 
-    //Calculate estimate value at test site, the ultimate output
+    //Calculate estimate value at test site, the ultimate output. 
+    cudaStatus = multiplyMatrices(tempMatrixTwo, designSiteValues, dimension); //Only consider elements within the dimension as the final value in the weight matrix is the lamda value (AKA not needed)
+
+    //Grab the first, and only, value of tempMatrixTwo as the ultimate output value
+    std::complex<double> outputValue = tempMatrixTwo[0];
 
     //Define error state
+    //Need to manage/report error state so that the output value can be returned NOT an error status
 SetupError:
     free(identityMatrix);
-
-    return cudaStatus;
+    free(tempMatrixOne);
+    free(tempMatrixTwo);
+    
+    return outputValue;
 }
 
 cudaError_t calculateGaussianCorrelation(std::complex<double>* outputMatrix, std::complex<double>* inMatrix, std::complex<double> variance, std::complex<double> a, std::complex<double> theta, int dimension) {
@@ -543,6 +567,57 @@ IdentityError:
     return cudaStatus;
 }
 
+cudaError_t multiplyMatrices(std::complex<double>* output, std::complex<double>* inputMatrix, int dimension) {
+    std::complex<double>* deviceInputOne = 0;
+    std::complex<double>* deviceInputTwo = 0;
+    std::complex<double>* deviceOutput = 0;
+    int matrixMemoryAllocationSize = pow(dimension, 2);
+    cudaError_t cudaStatus = cudaSuccess;
+
+    cudaStatus = cudaMalloc((void**)&deviceInputOne, matrixMemoryAllocationSize * sizeof(std::complex<double>));
+    if (cudaStatus != cudaSuccess) {
+        goto MultiplyError;
+    }
+
+    cudaStatus = cudaMalloc((void**)&deviceInputTwo, matrixMemoryAllocationSize * sizeof(std::complex<double>));
+    if (cudaStatus != cudaSuccess) {
+        goto MultiplyError;
+    }
+
+    cudaStatus = cudaMalloc((void**)&deviceOutput, matrixMemoryAllocationSize * sizeof(std::complex<double>));
+    if (cudaStatus != cudaSuccess) {
+        goto MultiplyError;
+    }
+
+    cudaStatus = cudaMemcpy(deviceInputOne, output, matrixMemoryAllocationSize * sizeof(std::complex<double>), cudaMemcpyHostToDevice);
+    if (cudaStatus != cudaSuccess) {
+        goto MultiplyError;
+    }
+
+    cudaStatus = cudaMemcpy(deviceInputTwo, inputMatrix, matrixMemoryAllocationSize * sizeof(std::complex<double>), cudaMemcpyHostToDevice);
+    if (cudaStatus != cudaSuccess) {
+        goto MultiplyError;
+    }
+
+    multiplyMatrix << <dimension, dimension >> > (deviceOutput, deviceInputOne, deviceInputTwo, dimension);
+    cudaStatus = cudaGetLastError();
+    if (cudaStatus != cudaSuccess) {
+        goto MultiplyError;
+    }
+
+    cudaStatus = cudaMemcpy(output, deviceOutput, matrixMemoryAllocationSize * sizeof(std::complex<double>), cudaMemcpyDeviceToHost);
+    if (cudaStatus != cudaSuccess) {
+        goto MultiplyError;
+    }
+
+MultiplyError:
+    cudaFree(deviceInputOne);
+    cudaFree(deviceInputTwo);
+    cudaFree(deviceOutput);
+
+    return cudaStatus;
+}
+
 //Begin CUDA Function Implementations
 __global__ void calcDistanceBetMats(std::complex<double>* outMat, std::complex<double>* inMatOne, std::complex<double>* inMatTwo, int dimension) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
@@ -628,6 +703,8 @@ __global__ void setZero(std::complex<double>* inputMatrix, std::complex<double>*
     return;
 }
 
+
+//This might yield race condition errors
 __global__ void multiplyMatrix(std::complex<double>* output, std::complex<double>* firInput, std::complex<double>* secInput, int dimension) {
     int x = blockIdx.x;
     int y = threadIdx.x;
