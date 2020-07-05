@@ -9,6 +9,7 @@ Purpose: This file contains the EEL Surrogate class.
 #include "device_launch_parameters.h"
 #include <stdio.h>
 #include <iostream>
+#include <math.h>
 //#include <cuComplex.h> //Unable to find proper documentation for cuComplex functionality. As such, some of the documentation relating to complex values is meaningless. 
 
 //Begin CPU Function Definitions
@@ -79,6 +80,9 @@ __global__ void multiplyMatrix(double* output, double* firInput, double* secInpu
 //CUDA function to create an identity matrix of the given dimension
 __global__ void createIdentMat(double* matrix, int dimension);
 
+//Testing function to print out arrays after computation.
+void printMatrix(double inArray[], int dimension);
+
 //Begin Function Implementations
 double metamodelSetup(int dimension, double theta, double variance, double a, double* designSite, double* testSite, double* designSiteValues) {
     
@@ -88,6 +92,7 @@ double metamodelSetup(int dimension, double theta, double variance, double a, do
     int extendedMatrixMemoryAllocationSize = pow(dimension+1, 2);
     int vectorMemoryAllocationSize = dimension+1;
     int extendedVectorMemoryAllocationSize = dimension + 1;
+    double outputValue = 0;
 
     //Create a dynamic allocation of memory for the identity matrix and populate with values
     double* identityMatrix = (double*) malloc(matrixMemoryAllocationSize * sizeof(double));
@@ -100,43 +105,15 @@ double metamodelSetup(int dimension, double theta, double variance, double a, do
         tempMatrixTwo[i] = 0;
     }
 
+    std::cout << "SETUP: Blank matrices." << std::endl;
+    printMatrix(tempMatrixOne, dimension);
+    printMatrix(tempMatrixTwo, dimension);
+
     // Choose which GPU to run on, change this on a multi-GPU system.
     cudaStatus = cudaSetDevice(0);
     if (cudaStatus != cudaSuccess){
         goto SetupError;
     }
-    
-    //Allocate GPU memory for the identity matrix
-    /*
-    cudaStatus = cudaMalloc((void**)&deviceIdentityMatrix, matrixMemoryAllocationSize * sizeof(double));
-    if (cudaStatus != cudaSuccess) {
-        goto SetupError;
-    }
-
-    //Allocate GPU memory for the test site matrix
-    cudaStatus = cudaMalloc((void**)&deviceTestSite, matrixMemoryAllocationSize * sizeof(double));
-    if (cudaStatus != cudaSuccess) {
-        goto SetupError;
-    }
-
-    //Allocate GPU memory for the design site values
-    cudaStatus = cudaMalloc((void**)&deviceDesignSiteValues, matrixMemoryAllocationSize * sizeof(double));
-    if (cudaStatus != cudaSuccess) {
-        goto SetupError;
-    }
-
-    //Allocate GPU memory for the design site matrix
-    cudaStatus = cudaMalloc((void**)&deviceDesignSite, matrixMemoryAllocationSize * sizeof(double));
-    if (cudaStatus != cudaSuccess) {
-        goto SetupError;
-    }
-
-    //Allocate GPU memory for the output matrix
-    cudaStatus = cudaMalloc((void**)&deviceOutVal, matrixMemoryAllocationSize * sizeof(double));
-    if (cudaStatus != cudaSuccess) {
-        goto SetupError;
-    }
-    */
 
     //Create identity matrix on GPU, input is also the output
     cudaStatus = createIdentityMatrix(identityMatrix, dimension);
@@ -144,57 +121,73 @@ double metamodelSetup(int dimension, double theta, double variance, double a, do
         goto SetupError;
     }
 
+    std::cout << "SETUP: Identity matrix." << std::endl;
+    printMatrix(identityMatrix, dimension);
+
     //Calculate distance between design sites and values at design sites. tempMatrixOne will hold the output
     cudaStatus = calculateDistanceBetweenMatrices(tempMatrixOne, designSite, designSiteValues, dimension);
     if (cudaStatus != cudaSuccess) {
         goto SetupError;
     }
 
+    printf("SETUP: Distance between designSite and designSiteValues\n");
+    printMatrix(tempMatrixOne, dimension);
+
     //Calculate distance between test site and design site. tempMatrixTwo will hold the output
-    cudaStatus = calculateDistanceBetweenMatrixVector(tempMatrixTwo, designSite, testSite, dimension);
+    //cudaStatus = calculateDistanceBetweenMatrixVector(tempMatrixTwo, designSite, testSite, dimension);
     if (cudaStatus != cudaSuccess) {
         goto SetupError;
     }
     
     //Calculate the covariance between design sites and values at design sites. tempMatrixOne will hold the output
-    cudaStatus = calculateGaussianCorrelation(tempMatrixOne, tempMatrixOne, variance, a, theta, dimension);
+    //cudaStatus = calculateGaussianCorrelation(tempMatrixOne, tempMatrixOne, variance, a, theta, dimension);
     if (cudaStatus != cudaSuccess) {
         goto SetupError;
     }
 
     //Calculate the covariance between test sites and design sites. tempMatrixTwo will hold the output
-    cudaStatus = calculateGaussianCorrelation(tempMatrixTwo, tempMatrixTwo, variance, a, theta, dimension);
+    //cudaStatus = calculateGaussianCorrelation(tempMatrixTwo, tempMatrixTwo, variance, a, theta, dimension);
     if (cudaStatus != cudaSuccess) {
         goto SetupError;
     }
 
     //Extend the covariance matrix between the design site and design site values
-    cudaStatus = extendMatrix(tempMatrixOne, tempMatrixOne, dimension + 1);
+    //cudaStatus = extendMatrix(tempMatrixOne, tempMatrixOne, dimension + 1);
     if (cudaStatus != cudaSuccess) {
         goto SetupError;
     }
 
     //Extend the covariance vector between test site and design sites. 
-    tempMatrixTwo[dimension + 0*dimension] = double(1,0); //Add 1 to the last row of the matrix, unclear if this is correct
+    //tempMatrixTwo[dimension + 0*dimension] = 1; //Add 1 to the last row of the matrix, unclear if this is correct
 
     //Calculate inverse of extended covariance matrix
-    cudaStatus = invertMatrix(tempMatrixOne, tempMatrixOne, dimension + 1);
+    //cudaStatus = invertMatrix(tempMatrixOne, tempMatrixOne, dimension + 1);
     if (cudaStatus != cudaSuccess) {
         goto SetupError;
     }
 
     //Calculate extended weights vector, tempMatrixTwo will hold the result
-    cudaStatus = calculateWeightVector(tempMatrixTwo, tempMatrixOne, tempMatrixTwo, dimension + 1);
+    //cudaStatus = calculateWeightVector(tempMatrixTwo, tempMatrixOne, tempMatrixTwo, dimension + 1);
+    if (cudaStatus != cudaSuccess) {
+        goto SetupError;
+    }
 
     //Calculate estimate value at test site, the ultimate output. 
-    cudaStatus = multiplyMatrices(tempMatrixTwo, designSiteValues, dimension); //Only consider elements within the dimension as the final value in the weight matrix is the lamda value (AKA not needed)
+    //cudaStatus = multiplyMatrices(tempMatrixTwo, designSiteValues, dimension); //Only consider elements within the dimension as the final value in the weight matrix is the lamda value (AKA not needed)
+    if (cudaStatus != cudaSuccess) {
+        goto SetupError;
+    }
 
     //Grab the first, and only, value of tempMatrixTwo as the ultimate output value
-    double outputValue = tempMatrixTwo[0];
+    //outputValue = tempMatrixTwo[0];
 
     //Define error state
     //Need to manage/report error state so that the output value can be returned NOT an error status
 SetupError:
+    if (cudaStatus != cudaSuccess) {
+        std::cout << "Device failed." << std::endl;
+        std::cout << "CUDA Error Code: " << cudaGetErrorString(cudaStatus) << std::endl;
+    }
     free(identityMatrix);
     free(tempMatrixOne);
     free(tempMatrixTwo);
@@ -202,14 +195,22 @@ SetupError:
     return outputValue;
 }
 
+//Use the outputMatrix is initially an input, but the matrix is then overwritten for the output to save memory. Unclear if this is entirely necessary to prevent overflowing memory.
 cudaError_t calculateGaussianCorrelation(double* outputMatrix, double* inMatrix, double variance, double a, double theta, int dimension) {
-    double* deviceOutVal = 0;
+    
+    //Allocate two pointers that will be used by the GPU for calculations.
+    double* deviceOutMat = 0;
     double* deviceInMat = 0;
+
+    //Create status variable for errors
     cudaError_t cudaStatus = cudaSuccess;
+
+    //Create two integers that represent size to allocate on the GPU for matrices and vectors
     int matrixMemoryAllocationSize = pow(dimension, 2);
     int vectorMemoryAllocationSize = dimension;
 
-    cudaStatus = cudaMalloc((void**)&deviceOutVal, matrixMemoryAllocationSize * sizeof(double));
+    //Allocate memory on the GPU for the appropriate matrices
+    cudaStatus = cudaMalloc((void**)&deviceOutMat, matrixMemoryAllocationSize * sizeof(double));
     if (cudaStatus != cudaSuccess) {
         goto CorrError;
     }
@@ -218,14 +219,20 @@ cudaError_t calculateGaussianCorrelation(double* outputMatrix, double* inMatrix,
     if (cudaStatus != cudaSuccess) {
         goto CorrError;
     }
-
+    
+    //Copy the CPU matrices to the GPU to allow for calculations
     cudaStatus = cudaMemcpy(deviceInMat, inMatrix, matrixMemoryAllocationSize * sizeof(double), cudaMemcpyHostToDevice);
     if (cudaStatus != cudaSuccess) {
         goto CorrError;
     }
 
-    //Perform calculation on the GPU and catch any error
-    calcGaussCorr << < dimension, dimension >> > (deviceOutMat, deviceInMatOne, deviceInMatTwo, dimension);
+    cudaStatus = cudaMemcpy(deviceOutMat, outputMatrix, matrixMemoryAllocationSize * sizeof(double), cudaMemcpyHostToDevice);
+    if (cudaStatus != cudaSuccess) {
+        goto CorrError;
+    }
+    
+    //Call the GPU function with the appropriate number of blocks and threads to perform calculation on the GPU. Catch any error returned.
+    calcGaussCorr <<< dimension, dimension >>> (deviceOutMat, deviceInMat, dimension, variance, a, theta);
     cudaStatus = cudaGetLastError();
     if (cudaStatus != cudaSuccess) {
         goto CorrError;
@@ -237,13 +244,14 @@ cudaError_t calculateGaussianCorrelation(double* outputMatrix, double* inMatrix,
         goto CorrError;
     }
 
-    cudaStatus = cudaMemcpy(outputMatrix, deviceOutVal, matrixMemoryAllocationSize * sizeof(double), cudaMemcpyDeviceToHost);
+    //Copy data from the GPU to the CPU matrix.
+    cudaStatus = cudaMemcpy(outputMatrix, deviceOutMat, matrixMemoryAllocationSize * sizeof(double), cudaMemcpyDeviceToHost);
     if (cudaStatus != cudaSuccess) {
         goto CorrError;
     }
 
 CorrError:
-    cudaFree(deviceOutVal);
+    cudaFree(deviceOutMat);
     cudaFree(deviceInMat);
 
     return cudaStatus;
@@ -284,7 +292,7 @@ cudaError_t calculateDistanceBetweenMatrices(double* outputMatrix, double* inMat
     }
 
     //Perform calculation on the GPU and catch any error
-    calcDistanceBetMats <<< dimension, dimension >>> (deviceOutMat, deviceInMatOne, deviceInMatTwo, dimension, twoMatrices);
+    calcDistanceBetMats <<< dimension, dimension >>> (deviceOutMat, deviceInMatOne, deviceInMatTwo, dimension);
     cudaStatus = cudaGetLastError();
     if (cudaStatus != cudaSuccess) {
         goto MatDistError;
@@ -406,7 +414,7 @@ cudaError_t calculateWeightVector(double* outputVectorMatrix, double* invertedCo
         goto WeightError;
     }
 
-    multiplyMatrix<<<dimension, dimension>>>(deviceOutMat, deviceInvCovMat, deviceCovVecMat)
+    multiplyMatrix << <dimension, dimension >> > (deviceOutMat, deviceInvCovMat, deviceCovVecMat, dimension);
     cudaStatus = cudaGetLastError();
     if (cudaStatus != cudaSuccess) {
         goto WeightError;
@@ -455,7 +463,7 @@ cudaError_t extendMatrix(double* outputMatrix, double* inputMatrix, int dimensio
     }
 
     //Perform calculation on the GPU and catch any error
-    extendMat <<<dimension + 1, dimension + 1 >>> (deviceOutMat, deviceInMat, dimension);
+    extendMat <<<dimension + 1, dimension + 1 >>> (deviceOutMat, deviceInMat, dimension); 
     cudaStatus = cudaGetLastError();
     if (cudaStatus != cudaSuccess) {
         goto ExtendError;
@@ -630,7 +638,7 @@ __global__ void calcDistanceBetMats(double* outMat, double* inMatOne, double* in
 __global__ void calcDistanceBetMatVec(double* outMat, double* inMat, double* inVec, int dimension) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     int j = 0;
-    
+
     outMat[i + j * dimension] = std::pow(std::abs(inMat[i + j * dimension] - inVec[i + j * dimension]), 2);
     return;
 }
@@ -638,7 +646,9 @@ __global__ void calcDistanceBetMatVec(double* outMat, double* inMat, double* inV
 __global__ void calcGaussCorr(double* outMat, double* inMat, int dimension, double variance, double a, double theta) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     int j = blockIdx.y * blockDim.y + threadIdx.y;
-    double negOne(-1, 0);
+    
+    //Artifact of the cuComplex purge. Leaving here as it might be necessary later and will save a little time.
+    double negOne = -1;
 
     outMat[i + j * dimension] = (variance - a) * std::exp(negOne * theta * inMat[i + j * dimension]);
 
@@ -708,7 +718,7 @@ __global__ void setZero(double* inputMatrix, double* identityMatrix, int n, int 
 __global__ void multiplyMatrix(double* output, double* firInput, double* secInput, int dimension) {
     int x = blockIdx.x;
     int y = threadIdx.x;
-
+    
     //Multiple each element pair and then sum them together
     for (int i = 0; i < dimension; i++) {
         output[x + y * dimension] += firInput[i + y * dimension] * secInput[x + i * dimension];
@@ -718,8 +728,12 @@ __global__ void multiplyMatrix(double* output, double* firInput, double* secInpu
 }
 
 __global__ void extendMat(double* outMat, double* inMat, int dimension) {
-    int i = blockIdx.x * blockDim.x + threadIdx.x;
-    int j = blockIdx.y * blockDim.y + threadIdx.y;
+    //int i = blockIdx.x * blockDim.x + threadIdx.x;
+    //int j = blockIdx.y * blockDim.y + threadIdx.y;
+
+    //Need to figure out a better way to index this
+    int i = blockIdx.x;
+    int j = threadIdx.x;
 
     //If both i & j equal dimension, the current index is the corner which should be set to zero
     if (i == dimension && j == dimension) {
@@ -739,15 +753,19 @@ __global__ void extendMat(double* outMat, double* inMat, int dimension) {
 __global__ void normalizeMatrix(double* outMat, double* inMat, double normalizingValue, int dimension) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     int j = blockIdx.y * blockDim.y + threadIdx.y;
-
+    
     outMat[i + j * dimension] = inMat[i + j * dimension] / normalizingValue;
 
     return;
 }
 
 __global__ void createIdentMat(double* matrix, int dimension) {
-    int i = blockIdx.x * blockDim.x + threadIdx.x;
-    int j = blockIdx.y * blockDim.y + threadIdx.y;
+    //int i = blockIdx.x * blockDim.x + threadIdx.x;
+    //int j = blockIdx.y * blockDim.y + threadIdx.y;
+
+    //Need to figure out a better way to index this
+    int i = blockIdx.x;
+    int j = threadIdx.x;
 
     if (i == j) {
         matrix[i + j * dimension] = 1;
@@ -756,5 +774,28 @@ __global__ void createIdentMat(double* matrix, int dimension) {
         matrix[i + j * dimension] = 0;
     }
 
+    return;
+}
+
+void printMatrix(double inArray[], int dimension) {
+    int index = 0;
+    std::cout << "{";
+    for (int i = 0; i < dimension; i++) {
+        for (int j = 0; j < dimension; j++) {
+            index = i + (j * dimension);
+            if (j + 1 < dimension) {
+                std::cout << inArray[index] << ", ";
+            }
+            else {
+                std::cout << inArray[index];
+            }
+        }
+        if (i + 1 < dimension) {
+            std::cout << "; ";
+        }
+        else {
+            std::cout << "}" << std::endl;
+        }
+    }
     return;
 }

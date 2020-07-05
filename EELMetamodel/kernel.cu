@@ -13,29 +13,35 @@ Purpose: This file is for the purposes of writing Metamodel test code.
 #include <iostream>
 #include <complex>
 
-void printMatrix(double inArray[], int dimension);
 
 int main()
 {
     const int arraySize = 4;
-    double a[arraySize] = { 1, 2, 3, 4 };
-    double b[arraySize] = { 10, 20, 30, 40};
-    double c[arraySize] = { 5 };
+    double dummyDesignSite[arraySize] = { 1, 2, 3, 4 };
+    double dummyTestSite[arraySize] = { 2, 3, 4, 5};
+    double dummyDesignSiteValues[arraySize] = { 6, 7, 8, 9 };
+    double result = -1;
+
+    double theta = 1;
+    double aVal = 1;
+    double variance = 0;
     cudaError_t cudaStatus = cudaSuccess;
+
     
-    // Add vectors in parallel.
-    //cudaStatus = cudaSetup(c, a, b, sqrt(arraySize));
+    //Perform metamodel Kriging operations
+    result = metamodelSetup(sqrt(arraySize), theta, variance, aVal, dummyDesignSite, dummyTestSite, dummyDesignSiteValues);
     if (cudaStatus != cudaSuccess) {
         fprintf(stderr, "Kernel failed!");
         return 1;
     }
 
+    std::cout << "MAIN: Matrices after calculations." << std::endl;
     //Print first input matrix
-    printMatrix(a, sqrt(arraySize));
+    printMatrix(dummyDesignSite, sqrt(arraySize));
     //Print second input matrix
-    printMatrix(b, sqrt(arraySize));
+    printMatrix(dummyTestSite, sqrt(arraySize));
     //Print output matrix
-    printMatrix(c, sqrt(arraySize));
+    printMatrix(dummyDesignSiteValues, sqrt(arraySize));
 
     // cudaDeviceReset must be called before exiting in order for profiling and
     // tracing tools such as Nsight and Visual Profiler to show complete traces.
@@ -49,25 +55,4 @@ int main()
 }
 
 
-void printMatrix(double inArray[], int dimension) {
-    int index = 0;
-    std::cout << "{";
-    for (int i = 0; i < dimension; i++) {
-        for (int j = 0; j < dimension; j++) {
-            index = i + (j * dimension);
-            if (j + 1 < dimension) {
-                std::cout << inArray[index] << ", ";
-            }
-            else {
-                std::cout << inArray[index];
-            }
-        }
-        if (i + 1 < dimension) {
-            std::cout << "; ";
-        }
-        else {
-            std::cout << "}" << std::endl;
-        }
-    }
-    return;
-}
+
