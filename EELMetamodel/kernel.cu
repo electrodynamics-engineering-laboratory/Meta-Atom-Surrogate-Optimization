@@ -18,7 +18,7 @@ int main()
 {
     const int arraySize = 4;
     double dummyDesignSite[arraySize] = { 1, 2, 3, 4 };
-    double dummyTestSite[arraySize] = { 2, 3, 4, 5};
+    double dummyTestSite[arraySize] = { 10, 11, 0, 0};
     double dummyDesignSiteValues[arraySize] = { 6, 7, 8, 9 };
     double result = -1;
 
@@ -37,10 +37,13 @@ int main()
 
     std::cout << "MAIN: Matrices after calculations." << std::endl;
     //Print first input matrix
+    printf("MAIN: designSite\n");
     printMatrix(dummyDesignSite, sqrt(arraySize));
     //Print second input matrix
+    printf("MAIN: testSite\n");
     printMatrix(dummyTestSite, sqrt(arraySize));
     //Print output matrix
+    printf("MAIN: designSiteValues\n");
     printMatrix(dummyDesignSiteValues, sqrt(arraySize));
 
     // cudaDeviceReset must be called before exiting in order for profiling and

@@ -134,11 +134,14 @@ double metamodelSetup(int dimension, double theta, double variance, double a, do
     printMatrix(tempMatrixOne, dimension);
 
     //Calculate distance between test site and design site. tempMatrixTwo will hold the output
-    //cudaStatus = calculateDistanceBetweenMatrixVector(tempMatrixTwo, designSite, testSite, dimension);
+    cudaStatus = calculateDistanceBetweenMatrixVector(tempMatrixTwo, designSite, testSite, dimension);
     if (cudaStatus != cudaSuccess) {
         goto SetupError;
     }
     
+    printf("SETUP: Distance between designSite and testSite\n");
+    printMatrix(tempMatrixTwo, dimension);
+
     //Calculate the covariance between design sites and values at design sites. tempMatrixOne will hold the output
     //cudaStatus = calculateGaussianCorrelation(tempMatrixOne, tempMatrixOne, variance, a, theta, dimension);
     if (cudaStatus != cudaSuccess) {
