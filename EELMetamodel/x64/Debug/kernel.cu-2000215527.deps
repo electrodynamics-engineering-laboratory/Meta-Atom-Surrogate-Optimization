@@ -110,6 +110,8 @@ C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.2\include\crt\math_functi
 C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.2\include\crt\math_functions.hpp
 C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.2\include\crt\sm_70_rt.h
 C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.2\include\cuda_device_runtime_api.h
+C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.2\include\cuda_fp16.h
+C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.2\include\cuda_fp16.hpp
 C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.2\include\cuda_runtime.h
 C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.2\include\cuda_runtime_api.h
 C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.2\include\cuda_surface_types.h

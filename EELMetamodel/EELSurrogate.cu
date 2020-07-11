@@ -10,6 +10,7 @@ Purpose: This file contains the EEL Surrogate class.
 #include <stdio.h>
 #include <iostream>
 #include <math.h>
+#include <cuda_fp16.h>
 //#include <cuComplex.h> //Unable to find proper documentation for cuComplex functionality. As such, some of the documentation relating to complex values is meaningless. 
 
 //Begin CPU Function Definitions
@@ -53,7 +54,7 @@ cudaError_t createIdentityMatrix(double* matrix, int dimension);
 cudaError_t multiplyMatrices(double* output, double* inputMatrix, int dimension);
 
 //Begin GPU Function Definitions
-//CUDA function to calculate distance between two matrices
+//CUDA function to calculate distance between t6wo matrices
 __global__ void calcDistanceBetMats(double* outMat, double* inMatOne, double* inMatTwo, int dimension);
 
 //CUDA function to calculate the distance between a matrix and a vector
@@ -100,14 +101,14 @@ double metamodelSetup(int dimension, double theta, double variance, double a, do
     //Create a dynamic allocation of memory for a temporary holding matrix
     double* tempMatrixOne = (double*) malloc(extendedMatrixMemoryAllocationSize * sizeof(double));
     double* tempMatrixTwo = (double*) malloc(extendedMatrixMemoryAllocationSize * sizeof(double));
-    for (int i = 0; i < pow(dimension,2); i++) {
+    for (int i = 0; i < pow(dimension+1,2); i++) {
         tempMatrixOne[i] = 0;
         tempMatrixTwo[i] = 0;
     }
 
-    std::cout << "SETUP: Blank matrices." << std::endl;
-    printMatrix(tempMatrixOne, dimension);
-    printMatrix(tempMatrixTwo, dimension);
+    //std::cout << "SETUP: Blank matrices." << std::endl;
+    //printMatrix(tempMatrixOne, dimension);
+    //printMatrix(tempMatrixTwo, dimension);
 
     // Choose which GPU to run on, change this on a multi-GPU system.
     cudaStatus = cudaSetDevice(0);
@@ -121,8 +122,8 @@ double metamodelSetup(int dimension, double theta, double variance, double a, do
         goto SetupError;
     }
 
-    std::cout << "SETUP: Identity matrix." << std::endl;
-    printMatrix(identityMatrix, dimension);
+    //std::cout << "SETUP: Identity matrix." << std::endl;
+    //printMatrix(identityMatrix, dimension);
 
     //Calculate distance between design sites and values at design sites. tempMatrixOne will hold the output
     cudaStatus = calculateDistanceBetweenMatrices(tempMatrixOne, designSite, designSiteValues, dimension);
@@ -130,8 +131,8 @@ double metamodelSetup(int dimension, double theta, double variance, double a, do
         goto SetupError;
     }
 
-    printf("SETUP: Distance between designSite and designSiteValues\n");
-    printMatrix(tempMatrixOne, dimension);
+    //printf("SETUP: Distance between designSite and designSiteValues\n");
+    //printMatrix(tempMatrixOne, dimension);
 
     //Calculate distance between test site and design site. tempMatrixTwo will hold the output
     cudaStatus = calculateDistanceBetweenMatrixVector(tempMatrixTwo, designSite, testSite, dimension);
@@ -139,29 +140,42 @@ double metamodelSetup(int dimension, double theta, double variance, double a, do
         goto SetupError;
     }
     
-    printf("SETUP: Distance between designSite and testSite\n");
-    printMatrix(tempMatrixTwo, dimension);
+    //printf("SETUP: Distance between designSite and testSite\n");
+    //printMatrix(tempMatrixTwo, dimension);
 
+   // printf("SETUP: Dimension %d\n", dimension);
     //Calculate the covariance between design sites and values at design sites. tempMatrixOne will hold the output
-    //cudaStatus = calculateGaussianCorrelation(tempMatrixOne, tempMatrixOne, variance, a, theta, dimension);
+    cudaStatus = calculateGaussianCorrelation(tempMatrixOne, tempMatrixOne, variance, a, theta, dimension);
     if (cudaStatus != cudaSuccess) {
         goto SetupError;
     }
+
+    printf("SETUP: Matrix Gaussian Correlation\n");
+    printMatrix(tempMatrixOne, dimension);
 
     //Calculate the covariance between test sites and design sites. tempMatrixTwo will hold the output
-    //cudaStatus = calculateGaussianCorrelation(tempMatrixTwo, tempMatrixTwo, variance, a, theta, dimension);
+    cudaStatus = calculateGaussianCorrelation(tempMatrixTwo, tempMatrixTwo, variance, a, theta, dimension);
     if (cudaStatus != cudaSuccess) {
         goto SetupError;
     }
+
+    //printf("SETUP: Vector Gaussian Correlation\n");
+    //printMatrix(tempMatrixTwo, dimension);
 
     //Extend the covariance matrix between the design site and design site values
-    //cudaStatus = extendMatrix(tempMatrixOne, tempMatrixOne, dimension + 1);
+    cudaStatus = extendMatrix(tempMatrixOne, tempMatrixOne, dimension);
     if (cudaStatus != cudaSuccess) {
         goto SetupError;
     }
 
+    printf("SETUP: Extend Matrix\n");
+    printMatrix(tempMatrixOne, dimension+1);
+
     //Extend the covariance vector between test site and design sites. 
-    //tempMatrixTwo[dimension + 0*dimension] = 1; //Add 1 to the last row of the matrix, unclear if this is correct
+    tempMatrixTwo[dimension + 0*dimension] = 1; //Add 1 to the last row of the matrix, unclear if this is correct
+    
+    printf("SETUP: Extend Vector\n");
+    printMatrix(tempMatrixTwo, dimension+1);
 
     //Calculate inverse of extended covariance matrix
     //cudaStatus = invertMatrix(tempMatrixOne, tempMatrixOne, dimension + 1);
@@ -188,8 +202,8 @@ double metamodelSetup(int dimension, double theta, double variance, double a, do
     //Need to manage/report error state so that the output value can be returned NOT an error status
 SetupError:
     if (cudaStatus != cudaSuccess) {
-        std::cout << "Device failed." << std::endl;
-        std::cout << "CUDA Error Code: " << cudaGetErrorString(cudaStatus) << std::endl;
+        std::cout << "SETUP: Device failed" << std::endl;
+        std::cout << "SETUP: CUDA Error Code -> " << cudaGetErrorString(cudaStatus) << std::endl;
     }
     free(identityMatrix);
     free(tempMatrixOne);
@@ -264,6 +278,7 @@ cudaError_t calculateDistanceBetweenMatrices(double* outputMatrix, double* inMat
     double* deviceOutMat = 0;
     double* deviceInMatOne = 0;
     double* deviceInMatTwo = 0;
+    int* deviceDimension = 0;
     cudaError_t cudaStatus = cudaSuccess;
     int matrixMemoryAllocationSize = pow(dimension, 2);
 
@@ -446,7 +461,15 @@ cudaError_t extendMatrix(double* outputMatrix, double* inputMatrix, int dimensio
     double* deviceOutMat = 0;
     double* deviceInMat = 0;
     cudaError_t cudaStatus = cudaSuccess;
-    int matrixMemoryAllocationSize = pow(dimension, 2);
+    int matrixMemoryAllocationSize = pow(dimension+1, 2);
+
+    //Swap matrix locations to prepare for "extension" of the matrix. 
+    for (int i = dimension; i >= 0; i--) {
+        for (int j = dimension; j >= 0; j--) {
+            //printf("OLD [%d], NEW [%d]\n", (i + j * dimension), (i + j * (dimension + 1)));
+            inputMatrix[i + j * (dimension + 1)] = inputMatrix[i + j * dimension];
+        }
+    }
 
     //Begin allocation of memory on GPU device
     cudaStatus = cudaMalloc((void**)&deviceOutMat, matrixMemoryAllocationSize * sizeof(double));
@@ -466,7 +489,7 @@ cudaError_t extendMatrix(double* outputMatrix, double* inputMatrix, int dimensio
     }
 
     //Perform calculation on the GPU and catch any error
-    extendMat <<<dimension + 1, dimension + 1 >>> (deviceOutMat, deviceInMat, dimension); 
+    extendMat <<<dimension+ 1 , dimension+ 1>>> (deviceOutMat, deviceInMat, dimension+1); 
     cudaStatus = cudaGetLastError();
     if (cudaStatus != cudaSuccess) {
         goto ExtendError;
@@ -479,11 +502,15 @@ cudaError_t extendMatrix(double* outputMatrix, double* inputMatrix, int dimensio
     }
 
     //Copy data from GPU address to CPU address
+    printf("EXTEND: BEFORE\n");
+    printMatrix(outputMatrix, dimension + 1);
     cudaStatus = cudaMemcpy(outputMatrix, deviceOutMat, matrixMemoryAllocationSize * sizeof(double), cudaMemcpyDeviceToHost);
     if (cudaStatus != cudaSuccess) {
         goto ExtendError;
     }
 
+    printf("EXTEND: AFTER\n");
+    printMatrix(outputMatrix, dimension + 1);
 ExtendError:
     cudaFree(deviceOutMat);
     cudaFree(deviceInMat);
@@ -633,7 +660,7 @@ MultiplyError:
 __global__ void calcDistanceBetMats(double* outMat, double* inMatOne, double* inMatTwo, int dimension) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     int j = blockIdx.y * blockDim.y + threadIdx.y;
-
+    //printf("calcDistanceBetMats [%d, %d]: %d\n", i, j, i + j * dimension);
     outMat[i + j * dimension] = std::pow(std::abs(inMatOne[i + j * dimension] - inMatTwo[i + j * dimension]),2);
     return;
 }
@@ -641,7 +668,7 @@ __global__ void calcDistanceBetMats(double* outMat, double* inMatOne, double* in
 __global__ void calcDistanceBetMatVec(double* outMat, double* inMat, double* inVec, int dimension) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     int j = 0;
-
+    //printf("calcDistanceBetMatVec [%d, %d]: %d\n", i, j, i + j * dimension);
     outMat[i + j * dimension] = std::pow(std::abs(inMat[i + j * dimension] - inVec[i + j * dimension]), 2);
     return;
 }
@@ -649,12 +676,11 @@ __global__ void calcDistanceBetMatVec(double* outMat, double* inMat, double* inV
 __global__ void calcGaussCorr(double* outMat, double* inMat, int dimension, double variance, double a, double theta) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     int j = blockIdx.y * blockDim.y + threadIdx.y;
-    
+    //printf("calcGaussCorr [%d, %d]: %d\n", i, j, i + j * dimension);
     //Artifact of the cuComplex purge. Leaving here as it might be necessary later and will save a little time.
     double negOne = -1;
-
     outMat[i + j * dimension] = (variance - a) * std::exp(negOne * theta * inMat[i + j * dimension]);
-
+    
     return;
 }
 
@@ -731,24 +757,32 @@ __global__ void multiplyMatrix(double* output, double* firInput, double* secInpu
 }
 
 __global__ void extendMat(double* outMat, double* inMat, int dimension) {
-    //int i = blockIdx.x * blockDim.x + threadIdx.x;
-    //int j = blockIdx.y * blockDim.y + threadIdx.y;
-
-    //Need to figure out a better way to index this
-    int i = blockIdx.x;
-    int j = threadIdx.x;
-
-    //If both i & j equal dimension, the current index is the corner which should be set to zero
-    if (i == dimension && j == dimension) {
-        outMat[i + j * (dimension + 1)] = 0;
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    int j = blockIdx.y * blockDim.y + threadIdx.y;
+    int index = i + j * dimension;
+    printf("extendMat [%d, %d]: %d\n", index, dimension, (dimension-1)*dimension );
+    
+    //If the current index is on the bottom-most row of the extended matrix
+    if ( ((index + 1) % dimension) == 0) {
+        printf("[%d] Hitting first statement\n", index);
+        //If the sqrt(index+1) is equal to the dimension, it is the bottom right corner of the extended matrix
+        if ((int)sqrt((float)(index + 1)) == dimension) {
+            outMat[index] = 0.0;
+        }
+        //Otherwise, it is the bottom row of the extended matrix
+        else {
+            outMat[index] = 1.0;
+        }
     }
-    //If i or j are equal to dimension, the current index is the right or bottom edge of the matrix which should be set to one
-    else if (i == dimension || j == dimension) {
-        outMat[i + j * (dimension + 1)] = 1;
+    //If the current index is on the right-most column of the extended matrix. The previous statement should get the bottom right coordinate which is set to zero.
+    else if ( index >= (dimension)*(dimension-1)) {
+        printf("[%d] Hitting second statement\n", index);
+        outMat[index] = 1.0;
     }
-    //Otherwise, simply copy the value over to the output matrix
+    //Otherwise, the index is within the original matrix
     else {
-        outMat[i + j * (dimension + 1)] = inMat[i + j * (dimension)];
+        printf("[%d] Hitting third statement\n", index);
+        outMat[index] = inMat[index];
     }
     return;
 }
@@ -763,18 +797,15 @@ __global__ void normalizeMatrix(double* outMat, double* inMat, double normalizin
 }
 
 __global__ void createIdentMat(double* matrix, int dimension) {
-    //int i = blockIdx.x * blockDim.x + threadIdx.x;
-    //int j = blockIdx.y * blockDim.y + threadIdx.y;
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    int j = blockIdx.y * blockDim.y + threadIdx.y;
+    int index = i + j * dimension;
 
-    //Need to figure out a better way to index this
-    int i = blockIdx.x;
-    int j = threadIdx.x;
-
-    if (i == j) {
-        matrix[i + j * dimension] = 1;
+    if (index % (dimension + 1) == 0) {
+        matrix[index] = 1;
     }
     else {
-        matrix[i + j * dimension] = 0;
+        matrix[index] = 0;
     }
 
     return;
@@ -786,19 +817,24 @@ void printMatrix(double inArray[], int dimension) {
     for (int i = 0; i < dimension; i++) {
         for (int j = 0; j < dimension; j++) {
             index = i + (j * dimension);
+            //printf("printMatrix[%d] = %f\n", index, inArray[index]);
+            
             if (j + 1 < dimension) {
-                std::cout << inArray[index] << ", ";
+                printf("%0.60f,", inArray[index]);
             }
             else {
-                std::cout << inArray[index];
+                printf("%0.60f", inArray[index]);
             }
+            
         }
+        
         if (i + 1 < dimension) {
-            std::cout << "; ";
+            printf(";\n");
         }
         else {
-            std::cout << "}" << std::endl;
+            printf("}\n");
         }
+        
     }
     return;
 }
