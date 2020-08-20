@@ -1,8 +1,9 @@
 /*
 File: EELSurrogate.cu
-Date: 2-24-2020
-Author: Joe Haun
-Purpose: This file contains the EEL Surrogate class.  
+Purpose: This file contains the EEL Surrogate functions.
+Created: 2-24-2020
+Modified: 8-5-2020
+Author: Joseph Haun
 */
 
 #include "cuda_runtime.h"
@@ -11,20 +12,25 @@ Purpose: This file contains the EEL Surrogate class.
 #include <iostream>
 #include <math.h>
 #include <cuda_fp16.h>
+#include <cublas_v2.h>
+#include <conio.h>
+
+#define CUDA_CALL(res, str) { if (res != cudaSuccess) { printf("CUDA Error : %s : %s %d : ERR %s\n", str, __FILE__, __LINE__, cudaGetErrorName(res)); } }
+#define CUBLAS_CALL(res, str) { if (res != CUBLAS_STATUS_SUCCESS) { printf("CUBLAS Error : %s : %s %d : ERR %d\n", str, __FILE__, __LINE__, int(res)); goto InvertError; } }
+
 //#include <cuComplex.h> //Unable to find proper documentation for cuComplex functionality. As such, some of the documentation relating to complex values is meaningless. 
 
 //Begin CPU Function Definitions
-/*
-Name: metamodelSetup
+/* ALL MATRICES IN COLUMN-MAJOR FORMAT
+Function:    metamodelSetup
 Description: Function sets up and performs calculations on the GPU that relate to a metamodel
-Input:  outputValue - (CURRENTLY UNKNOWN AND WILL CHANGE) a pointer to a value that will be used for output 
-        dimension - an integer value representing the number of rows for all matrices and vectors and the number columns for all matrices
-        theta - (THIS MIGHT BE AN INCORRECT DESCRIPTION) a value in radians that represents the angle between the two matrices, this value should only ever be real
-        variance - the value of the variance between 
-        designSite - a dimension-by-dimension matrix that represents the datapoints previously collected to be used to estimate a new value based on test site
-        testSite - a dimension-by-dimension matrix with only the first column that make up the vector that represents the points at which a new value is to be calculated
-        designSiteValues - a dimension-by-dimension matrix that represent the values at particular design sites. Each matrix has a 1-to-1 correlation of site to value (i.e. designSite[0] is paired with designSiteValues[0])
-Output: a value that is any error that the GPU experienced upon attempting calculations
+Inputs:      dimension (int) - an integer value representing the number of rows for all matrices and vectors and the number columns for all matrices
+             theta (double) - (THIS MIGHT BE AN INCORRECT DESCRIPTION) a value in radians that represents the angle between the two matrices, this value should only ever be real
+             variance (double) - the value of the variance for use in determination of the 
+             designSite (double[]) - a dimension-by-dimension matrix that represents the datapoints previously collected to be used to estimate a new value based on test site
+             testSite (double[])- a dimension-by-dimension matrix with only the first column that make up the vector that represents the points at which a new value is to be calculated
+             designSiteValues (double[]) - a dimension-by-dimension matrix that represent the values at particular design sites. Each matrix has a 1-to-1 correlation of site to value (i.e. designSite[0] is paired with designSiteValues[0])
+Outputs:     outputValue (double) - The estimator value that is calculated for the given target, design sites, and design site values.
 */
 //Function sets up and performs calculations on the GPU
 double metamodelSetup(int dimension, double theta, double variance, double a, double* designSite, double* testSite, double* designSiteValues );
@@ -70,6 +76,13 @@ __global__ void normalizeMatrix(double* outMat, double* inMat, double normalizin
 __global__ void extendMat(double* outMat, double* inMat, int dimension);
 
 //CUDA functions to calculate the inverse of a given matrix using Gauss-Jordan elimination method
+__global__ void resetBuffers(double* vals, bool* flag, int dimension);
+__global__ void normalizeRows(double* idenMat, double* inMat, double* firstVals, bool* flag, int dimension, int targetCol);
+__global__ void pivotDown(double* idenMat, double* inMat, int dimension, int targetRow);
+__global__ void pivotUp(double* idenMat, double* inMat, double* lastVals, bool* flag, int dimension, int targetRow);
+
+
+//Old CUDA functions to calculate the inverse of a given matrix using Gauss-Jordan elimination method
 __global__ void nonDiagNormalize(double* inputMatrix, double* identityMatrix, int n, int i);
 __global__ void diagNormalize(double* inputMatrix, double* identityMatrix, int n, int i);
 __global__ void gaussJordan(double* inputMatrix, double* identityMatrix, int n, int i);
@@ -104,11 +117,8 @@ double metamodelSetup(int dimension, double theta, double variance, double a, do
     for (int i = 0; i < pow(dimension+1,2); i++) {
         tempMatrixOne[i] = 0;
         tempMatrixTwo[i] = 0;
+        identityMatrix[i] = 0;
     }
-
-    //std::cout << "SETUP: Blank matrices." << std::endl;
-    //printMatrix(tempMatrixOne, dimension);
-    //printMatrix(tempMatrixTwo, dimension);
 
     // Choose which GPU to run on, change this on a multi-GPU system.
     cudaStatus = cudaSetDevice(0);
@@ -122,66 +132,59 @@ double metamodelSetup(int dimension, double theta, double variance, double a, do
         goto SetupError;
     }
 
-    //std::cout << "SETUP: Identity matrix." << std::endl;
-    //printMatrix(identityMatrix, dimension);
-
     //Calculate distance between design sites and values at design sites. tempMatrixOne will hold the output
-    cudaStatus = calculateDistanceBetweenMatrices(tempMatrixOne, designSite, designSiteValues, dimension);
+    //cudaStatus = calculateDistanceBetweenMatrices(tempMatrixOne, designSite, designSiteValues, dimension);
     if (cudaStatus != cudaSuccess) {
         goto SetupError;
     }
 
     //printf("SETUP: Distance between designSite and designSiteValues\n");
     //printMatrix(tempMatrixOne, dimension);
-
-    //Calculate distance between test site and design site. tempMatrixTwo will hold the output
-    cudaStatus = calculateDistanceBetweenMatrixVector(tempMatrixTwo, designSite, testSite, dimension);
-    if (cudaStatus != cudaSuccess) {
-        goto SetupError;
-    }
     
-    //printf("SETUP: Distance between designSite and testSite\n");
-    //printMatrix(tempMatrixTwo, dimension);
-
-   // printf("SETUP: Dimension %d\n", dimension);
-    //Calculate the covariance between design sites and values at design sites. tempMatrixOne will hold the output
-    cudaStatus = calculateGaussianCorrelation(tempMatrixOne, tempMatrixOne, variance, a, theta, dimension);
+    //Calculate distance between test site and design site. tempMatrixTwo will hold the output
+    //cudaStatus = calculateDistanceBetweenMatrixVector(tempMatrixTwo, designSite, testSite, dimension);
     if (cudaStatus != cudaSuccess) {
         goto SetupError;
     }
 
-    printf("SETUP: Matrix Gaussian Correlation\n");
-    printMatrix(tempMatrixOne, dimension);
+    //Calculate the covariance between design sites and values at design sites. tempMatrixOne will hold the output
+    //cudaStatus = calculateGaussianCorrelation(tempMatrixOne, tempMatrixOne, variance, a, theta, dimension);
+    if (cudaStatus != cudaSuccess) {
+        goto SetupError;
+    }
 
     //Calculate the covariance between test sites and design sites. tempMatrixTwo will hold the output
-    cudaStatus = calculateGaussianCorrelation(tempMatrixTwo, tempMatrixTwo, variance, a, theta, dimension);
+    //cudaStatus = calculateGaussianCorrelation(tempMatrixTwo, tempMatrixTwo, variance, a, theta, dimension);
     if (cudaStatus != cudaSuccess) {
         goto SetupError;
     }
 
-    //printf("SETUP: Vector Gaussian Correlation\n");
-    //printMatrix(tempMatrixTwo, dimension);
+    //Clear the extraneous elements of the matrix after the valid vector elements to prevent later calculation errors.
+    for (int i = dimension; i < pow(dimension + 1, 2); i++) {
+        tempMatrixTwo[i] = 0;
+    }
 
     //Extend the covariance matrix between the design site and design site values
-    cudaStatus = extendMatrix(tempMatrixOne, tempMatrixOne, dimension);
+    //cudaStatus = extendMatrix(tempMatrixOne, tempMatrixOne, dimension);
     if (cudaStatus != cudaSuccess) {
         goto SetupError;
     }
-
-    printf("SETUP: Extend Matrix\n");
-    printMatrix(tempMatrixOne, dimension+1);
 
     //Extend the covariance vector between test site and design sites. 
     tempMatrixTwo[dimension + 0*dimension] = 1; //Add 1 to the last row of the matrix, unclear if this is correct
     
-    printf("SETUP: Extend Vector\n");
-    printMatrix(tempMatrixTwo, dimension+1);
-
+    printf("SETUP: Before Invert Matrix\n");
+    //printMatrix(identityMatrix, dimension);
+    printMatrix(designSite, dimension);
     //Calculate inverse of extended covariance matrix
-    //cudaStatus = invertMatrix(tempMatrixOne, tempMatrixOne, dimension + 1);
+    //cudaStatus = invertMatrix(identityMatrix, tempMatrixOne, dimension + 1);
+    cudaStatus = invertMatrix(identityMatrix, designSite, dimension);
     if (cudaStatus != cudaSuccess) {
         goto SetupError;
     }
+
+    printf("SETUP: After Invert Matrix\n");
+    printMatrix(identityMatrix, dimension);
 
     //Calculate extended weights vector, tempMatrixTwo will hold the result
     //cudaStatus = calculateWeightVector(tempMatrixTwo, tempMatrixOne, tempMatrixTwo, dimension + 1);
@@ -463,7 +466,7 @@ cudaError_t extendMatrix(double* outputMatrix, double* inputMatrix, int dimensio
     cudaError_t cudaStatus = cudaSuccess;
     int matrixMemoryAllocationSize = pow(dimension+1, 2);
 
-    //Swap matrix locations to prepare for "extension" of the matrix. 
+    //Swap matrix locations to prepare for "extension" of the matrix.  
     for (int i = dimension; i >= 0; i--) {
         for (int j = dimension; j >= 0; j--) {
             //printf("OLD [%d], NEW [%d]\n", (i + j * dimension), (i + j * (dimension + 1)));
@@ -503,14 +506,15 @@ cudaError_t extendMatrix(double* outputMatrix, double* inputMatrix, int dimensio
 
     //Copy data from GPU address to CPU address
     printf("EXTEND: BEFORE\n");
-    printMatrix(outputMatrix, dimension + 1);
+    //printMatrix(outputMatrix, dimension + 1);
+    
     cudaStatus = cudaMemcpy(outputMatrix, deviceOutMat, matrixMemoryAllocationSize * sizeof(double), cudaMemcpyDeviceToHost);
     if (cudaStatus != cudaSuccess) {
         goto ExtendError;
     }
 
     printf("EXTEND: AFTER\n");
-    printMatrix(outputMatrix, dimension + 1);
+    //printMatrix(outputMatrix, dimension + 1);
 ExtendError:
     cudaFree(deviceOutMat);
     cudaFree(deviceInMat);
@@ -519,10 +523,26 @@ ExtendError:
 }
 
 cudaError_t invertMatrix(double* outputMatrix, double* inputMatrix, int dimension) {
+    
     double* deviceInMat = 0;
     double* deviceIdenMat = 0;
-    cudaError_t cudaStatus = cudaSuccess;
+    double* deviceBuffer = 0;
+    bool* deviceFlag = 0;
+    bool* flag = new bool;
+    *flag = true;
+
     int matrixMemoryAllocationSize = pow(dimension, 2);
+    cudaError_t cudaStatus = cudaSuccess;
+
+    cudaStatus = cudaMalloc((void**)&deviceBuffer, dimension * sizeof(double));
+    if (cudaStatus != cudaSuccess) {
+        goto InvertError;
+    }
+
+    cudaStatus = cudaMalloc((void**)&deviceFlag, sizeof(bool));
+    if (cudaStatus != cudaSuccess) {
+        goto InvertError;
+    }
 
     cudaStatus = cudaMalloc((void**)&deviceInMat, matrixMemoryAllocationSize * sizeof(double));
     if (cudaStatus != cudaSuccess) {
@@ -530,6 +550,11 @@ cudaError_t invertMatrix(double* outputMatrix, double* inputMatrix, int dimensio
     }
 
     cudaStatus = cudaMalloc((void**)&deviceIdenMat, matrixMemoryAllocationSize * sizeof(double));
+    if (cudaStatus != cudaSuccess) {
+        goto InvertError;
+    }
+
+    cudaStatus = cudaMemcpy(deviceFlag, flag, sizeof(bool), cudaMemcpyHostToDevice);
     if (cudaStatus != cudaSuccess) {
         goto InvertError;
     }
@@ -545,12 +570,32 @@ cudaError_t invertMatrix(double* outputMatrix, double* inputMatrix, int dimensio
     }
 
     for (int i = 0; i < dimension; i++) {
+        resetBuffers << <1, dimension >> > (deviceBuffer, deviceFlag, dimension);
+        normalizeRows << <dimension, dimension >> > (deviceIdenMat, deviceInMat, deviceBuffer, deviceFlag, dimension, i);
+        pivotDown << <dimension, dimension >> > (deviceIdenMat, deviceInMat, dimension, i);
+    }
+
+    for (int i = dimension - 1; i > 0; i--) {
+        resetBuffers << <1, dimension >> > (deviceBuffer, deviceFlag, dimension);
+        pivotUp << <dimension, dimension >> > (deviceIdenMat, deviceInMat, deviceBuffer, deviceFlag, dimension, i);
+    }
+    /*
+    for (int i = 0; i < dimension; i++) {
+        
         nonDiagNormalize<<<dimension, dimension>>> (deviceInMat, deviceIdenMat, dimension, i);
         diagNormalize <<<dimension, dimension >>> (deviceInMat, deviceIdenMat, dimension, i);
         gaussJordan <<<dimension, dimension >>> (deviceInMat, deviceIdenMat, dimension, i);
         setZero <<<dimension, dimension >>> (deviceInMat, deviceIdenMat, dimension, i);
+        //printf("INDEX: %d\n", i);
     }
+    */
     cudaStatus = cudaGetLastError();
+    if (cudaStatus != cudaSuccess) {
+        goto InvertError;
+    }
+
+    //Synchronize device to enable a copy of the result
+    cudaStatus = cudaDeviceSynchronize();
     if (cudaStatus != cudaSuccess) {
         goto InvertError;
     }
@@ -568,6 +613,9 @@ cudaError_t invertMatrix(double* outputMatrix, double* inputMatrix, int dimensio
 InvertError:
     cudaFree(deviceIdenMat);
     cudaFree(deviceInMat);
+    cudaFree(deviceBuffer);
+    cudaFree(deviceFlag);
+    free(flag);
 
     return cudaStatus;
 }
@@ -660,38 +708,177 @@ MultiplyError:
 __global__ void calcDistanceBetMats(double* outMat, double* inMatOne, double* inMatTwo, int dimension) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     int j = blockIdx.y * blockDim.y + threadIdx.y;
-    //printf("calcDistanceBetMats [%d, %d]: %d\n", i, j, i + j * dimension);
-    outMat[i + j * dimension] = std::pow(std::abs(inMatOne[i + j * dimension] - inMatTwo[i + j * dimension]),2);
+    int index = i + j * dimension;
+    outMat[index] = std::pow(std::abs(inMatOne[index] - inMatTwo[index]),2);
     return;
 }
 
 __global__ void calcDistanceBetMatVec(double* outMat, double* inMat, double* inVec, int dimension) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     int j = 0;
-    //printf("calcDistanceBetMatVec [%d, %d]: %d\n", i, j, i + j * dimension);
-    outMat[i + j * dimension] = std::pow(std::abs(inMat[i + j * dimension] - inVec[i + j * dimension]), 2);
+    int index = i + j * dimension;
+    outMat[index] = std::pow(std::abs(inMat[index] - inVec[index]), 2);
     return;
 }
 
 __global__ void calcGaussCorr(double* outMat, double* inMat, int dimension, double variance, double a, double theta) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     int j = blockIdx.y * blockDim.y + threadIdx.y;
-    //printf("calcGaussCorr [%d, %d]: %d\n", i, j, i + j * dimension);
+    int index = i + j * dimension;
     //Artifact of the cuComplex purge. Leaving here as it might be necessary later and will save a little time.
     double negOne = -1;
-    outMat[i + j * dimension] = (variance - a) * std::exp(negOne * theta * inMat[i + j * dimension]);
+    outMat[index] = (variance - a) * std::exp(negOne * theta * inMat[index]);
     
     return;
 }
 
+__global__ void resetBuffers(double* vals, bool* flag, int dimension) {
+    /*BEGIN DOC
+        Function:       resetBuffers(vals, flag)
+        Description:    Reset the buffers created for the normalize and pivot up operations.
+        Inputs:         vals (double*) - A pointer to an array of double values that function as a buffer for operations.
+                        flag (bool*) - A pointer to a boolean that functions as the flag to signal all threads to complete operations.
+                        dimension (int) - The dimension, n, of the vals array.
+        Outputs:        None
+        Notes:          This function needs to be called BEFORE normalizeRows or pivotUp is called. For every function call to either of those, the function will clear the values on the GPU to allow operations.
+        END DOC*/
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    int j = blockIdx.y * blockDim.y + threadIdx.y;
+    int index = i + j * dimension;
+
+    //Reset the flag to false if the zeroth index. This prevents race conditions between threads as there is only one value to write. 
+    if (index == 0) {
+        *flag = false;
+    }
+
+    //If the index is below the dimensions, set the value equal to zero. Not strictly necessary, but prevents data manipulation by extra threads in the case of thread optimization.
+    if (index < dimension) {
+        vals[index] = 0;
+    }
+    return;
+}
+
+__global__ void normalizeRows(double* idenMat, double* inMat, double* firstVals, bool* flag, int dimension, int targetCol) {
+    /*BEGIN DOC
+    Function:       normalizeRows(idenMat, inMat, dimension, flag, targetCol, firstVals)
+    Description:    Perform the necessary normalization for the pivot down step of the Gauss-Jordan Elimination algorithm.
+    Inputs:         identMat (double*) - A pointer to an array of double values that represent an identity matrix. Stored in row major format
+                    inMat (double*) - A pointer to an array of double values that represent a matrix of values to invert. Stored in row major format.
+                    dimension (int) - The dimension, n, of the square matrices.
+                    flag (bool*) - A pointer to a boolean that functions as the flag to signal all threads to complete operations.
+                    targetCol (int) - The target column index from which the pivot downwards operation occurs.
+    Outputs:        None
+    Notes:          Each row will be normalized by the value in the target column. The target column value is also used as a row index modifier to prevent the further normalization of values on the diagonal that have a lower index that the leading value of the targeted column.
+    END DOC*/
+
+    //Get the index value for the particular thread by 
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    int j = blockIdx.y * blockDim.y + threadIdx.y;
+    int index = i + j * dimension;
+    
+    //If the thread index is that of the first row and targeted column
+    if (index == targetCol * (dimension + 1)) {
+        //Get all subsequent element in the column of index
+        for (int k = index % dimension; k < dimension; k++) {
+            firstVals[k] = inMat[index - targetCol + k];
+        }
+        *flag = true;
+    }
+
+    //Use the flag as a lock to prevent divide-by-zero errors
+    while (*flag == false) {
+        //Simply wait for the array of first values to be set. 
+    }
+
+    //Grab the normalizing value for the particular thread by dividing the index by dimension in integer division. Decimal values should not be present.
+    double normVal = firstVals[index % dimension];
+    //If normalizing value is not zero and the index falls within the desired submatrix
+    if (normVal != 0 && index >= targetCol * dimension) {
+        //Divide the identity and input matrix position by the normalizing value
+        idenMat[index] /= normVal;
+        inMat[index] /= normVal;
+    }
+
+    return;
+}
+    
+__global__ void pivotDown(double* idenMat, double* inMat, int dimension, int targetRow) {
+    /*BEGIN DOC
+    Function:       pivotDown(idenMat, inMat, dimension, flag, targetRow)
+    Description:    Perform the pivot down step of the Gauss-Jordan Elimination algorithm. 
+    Inputs:         identMat (double*) - A pointer to an array of double values that represent an identity matrix. Stored in row major format
+                    inMat (double*) - A pointer to an array of double values that represent a matrix of values to invert. Stored in row major format.
+                    dimension (int) - The dimension, n, of the square matrices. 
+                    targetRow (int) - The target row index from which the pivot downwards operation occurs.
+    Outputs:        None
+    Notes:          Every row below the target row will have their column values subtracted by the pivot row's respective column value. The pivot row remains the same. 
+    END DOC*/
+
+    //Get the index value for the particular thread by multiplying the thread index values with the dimension in a row major format
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    int j = blockIdx.y * blockDim.y + threadIdx.y;
+    int index = i + j * dimension;
+
+    //If the current index falls above the targeted row, subtract the target row column value from the index's value
+    if (index % dimension > targetRow) {
+        double temp = inMat[index - (index % dimension - targetRow)];
+        idenMat[index] -= temp;
+        inMat[index] -= temp;
+    }
+    return;
+}
+
+__global__ void pivotUp(double* idenMat, double* inMat, double* lastVals, bool* flag, int dimension, int targetRow) {
+    /*BEGIN DOC
+    Function:       pivotUp(idenMat, inMat, lastVals, flag, dimension, targetRow)
+    Description:    Perform the pivot up step of the Gauss-Jordan Elimination algorithm.
+    Inputs:         identMat (double*) - A pointer to an array of double values that represent an identity matrix. Stored in row major format
+                    inMat (double*) - A pointer to an array of double values that represent a matrix of values to invert. Stored in row major format.
+                    dimension (int) - The dimension, n, of the square matrices.
+                    flag (bool*) - A pointer to a boolean that functions as the flag to signal all threads to complete operations.
+                    targetRow (int) - The target row index from which the pivot upwards operation occurs. 
+                    lastVals (double*) - A pointer to an array that will be used to store values for operations.
+    Outputs:        None
+    Notes:          Every row above the target row will have their column values subtracted by the pivot row's respective column value multiplied by the column value indicated by the targetRow value for that row. As the matrices are square, the target row is also the target column. The pivot row remains the same.
+    END DOC*/
+
+    //Get the index value for the particular thread by 
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    int j = blockIdx.y * blockDim.y + threadIdx.y;
+    int index = i + j * dimension;
+
+    //From the leading pivot column, find non-zero values from this row to the zeroth row
+    if (index == targetRow * (dimension + 1)) {
+        for (int k = index % dimension; k >= 0; k--) {
+            lastVals[(index - k)%dimension] = inMat[index - k];
+        }
+        *flag = true;
+    }
+
+    while (*flag == false) {
+        //Wait for the lastVals array to be populated
+    }
+
+    //If the index falls in a row below the target, perform subtraction operations
+    if (index % dimension < targetRow ) {
+        //Multiply the index value by the trailing row value and subtract value from current index in both matrices
+        double temp = lastVals[index % dimension] * inMat[index + targetRow - (index % dimension)];
+        idenMat[index] -= temp;
+        inMat[index] -= temp;
+    }
+    return;
+}
+//Old inversion functions
 __global__ void nonDiagNormalize(double* inputMatrix, double* identityMatrix, int n, int i) {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
 
     if ((x < n) && (y < n)) {
         if ((x == i) && (x != y)) {
-            identityMatrix[x * n + y] /= inputMatrix[i * n + i];
-            inputMatrix[x * n + y] /= inputMatrix[i * n + i];
+
+            identityMatrix[x * n + y ] /= inputMatrix[i * n + i];
+            inputMatrix[x * n + y ] /= inputMatrix[i * n + i];
+
         }
     }
     return;
@@ -700,9 +887,10 @@ __global__ void nonDiagNormalize(double* inputMatrix, double* identityMatrix, in
 __global__ void diagNormalize(double* inputMatrix, double* identityMatrix, int n, int i) {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
-
+    
     if ((x < n) && (y < n)) {
-        if ((x == i) && (x != y)) {
+        if ((x == y) && (x == i)) {
+
             identityMatrix[x * n + y] /= inputMatrix[i * n + i];
             inputMatrix[x * n + y] /= inputMatrix[i * n + i];
         }
@@ -714,13 +902,14 @@ __global__ void diagNormalize(double* inputMatrix, double* identityMatrix, int n
 __global__ void gaussJordan(double* inputMatrix, double* identityMatrix, int n, int i) {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
-
+    
     if ((x < n) && (y < n)) {
         if (x != i) {
-            identityMatrix[x * n + y] -= identityMatrix[i * n + y] * inputMatrix[x * n + i];
+            identityMatrix[x *n  + y] -= identityMatrix[i * n + y] * inputMatrix[x * n + i];
             if (y != i) {
-                inputMatrix[x * n + y] -= inputMatrix[i * n + y] * inputMatrix[x * n + i];
+                inputMatrix[x*n  + y] -= inputMatrix[i * n + y] * inputMatrix[x * n + i];
             }
+
         }
     }
 
@@ -733,7 +922,8 @@ __global__ void setZero(double* inputMatrix, double* identityMatrix, int n, int 
 
     if ((x < n) && (y < n)) {
         if (x != i) {
-            if (y != i) {
+            if (y == i) {
+                printf("Setting %f to 0: %d\n", inputMatrix[x + y * n], x + y * n);
                 inputMatrix[x * n + y] = 0;
             }
         }
@@ -741,7 +931,6 @@ __global__ void setZero(double* inputMatrix, double* identityMatrix, int n, int 
 
     return;
 }
-
 
 //This might yield race condition errors
 __global__ void multiplyMatrix(double* output, double* firInput, double* secInput, int dimension) {
@@ -760,11 +949,10 @@ __global__ void extendMat(double* outMat, double* inMat, int dimension) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     int j = blockIdx.y * blockDim.y + threadIdx.y;
     int index = i + j * dimension;
-    printf("extendMat [%d, %d]: %d\n", index, dimension, (dimension-1)*dimension );
     
     //If the current index is on the bottom-most row of the extended matrix
     if ( ((index + 1) % dimension) == 0) {
-        printf("[%d] Hitting first statement\n", index);
+        
         //If the sqrt(index+1) is equal to the dimension, it is the bottom right corner of the extended matrix
         if ((int)sqrt((float)(index + 1)) == dimension) {
             outMat[index] = 0.0;
@@ -776,12 +964,12 @@ __global__ void extendMat(double* outMat, double* inMat, int dimension) {
     }
     //If the current index is on the right-most column of the extended matrix. The previous statement should get the bottom right coordinate which is set to zero.
     else if ( index >= (dimension)*(dimension-1)) {
-        printf("[%d] Hitting second statement\n", index);
+        
         outMat[index] = 1.0;
     }
     //Otherwise, the index is within the original matrix
     else {
-        printf("[%d] Hitting third statement\n", index);
+        
         outMat[index] = inMat[index];
     }
     return;
