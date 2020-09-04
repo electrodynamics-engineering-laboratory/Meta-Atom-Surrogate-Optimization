@@ -9,6 +9,8 @@ C:\Users\Megawhopper\Documents\GitHub\Surrogate_Optimization\Surrogate_Optimizat
   
 C:\Users\Megawhopper\Documents\GitHub\Surrogate_Optimization\Surrogate_Optimization\Surrogate_Optimization\Surrogate_Optimization\EELMetamodel\EELSurrogate.cu(284): warning : variable "deviceDimension" was declared but never referenced
   
+C:\Users\Megawhopper\Documents\GitHub\Surrogate_Optimization\Surrogate_Optimization\Surrogate_Optimization\Surrogate_Optimization\EELMetamodel\EELSurrogate.cu(606): warning : the format string ends before this argument
+  
 C:/Users/Megawhopper/Documents/GitHub/Surrogate_Optimization/Surrogate_Optimization/Surrogate_Optimization/Surrogate_Optimization/EELMetamodel/kernel.cu(17): warning : variable "result" was set but never used
   
   kernel.cu
@@ -20,8 +22,9 @@ C:\Users\Megawhopper\Documents\GitHub\Surrogate_Optimization\Surrogate_Optimizat
 C:\Users\Megawhopper\Documents\GitHub\Surrogate_Optimization\Surrogate_Optimization\Surrogate_Optimization\Surrogate_Optimization\EELMetamodel\EELSurrogate.cu(408): warning C4244: 'initializing': conversion from 'double' to 'int', possible loss of data
 C:\Users\Megawhopper\Documents\GitHub\Surrogate_Optimization\Surrogate_Optimization\Surrogate_Optimization\Surrogate_Optimization\EELMetamodel\EELSurrogate.cu(467): warning C4244: 'initializing': conversion from 'double' to 'int', possible loss of data
 C:\Users\Megawhopper\Documents\GitHub\Surrogate_Optimization\Surrogate_Optimization\Surrogate_Optimization\Surrogate_Optimization\EELMetamodel\EELSurrogate.cu(534): warning C4244: 'initializing': conversion from 'double' to 'int', possible loss of data
-C:\Users\Megawhopper\Documents\GitHub\Surrogate_Optimization\Surrogate_Optimization\Surrogate_Optimization\Surrogate_Optimization\EELMetamodel\EELSurrogate.cu(626): warning C4244: 'initializing': conversion from 'double' to 'int', possible loss of data
-C:\Users\Megawhopper\Documents\GitHub\Surrogate_Optimization\Surrogate_Optimization\Surrogate_Optimization\Surrogate_Optimization\EELMetamodel\EELSurrogate.cu(660): warning C4244: 'initializing': conversion from 'double' to 'int', possible loss of data
-C:/Users/Megawhopper/Documents/GitHub/Surrogate_Optimization/Surrogate_Optimization/Surrogate_Optimization/Surrogate_Optimization/EELMetamodel/kernel.cu(25): warning C4244: 'argument': conversion from 'double' to 'int', possible loss of data
+C:\Users\Megawhopper\Documents\GitHub\Surrogate_Optimization\Surrogate_Optimization\Surrogate_Optimization\Surrogate_Optimization\EELMetamodel\EELSurrogate.cu(606): warning C4474: 'printf' : too many arguments passed for format string
+  C:\Users\Megawhopper\Documents\GitHub\Surrogate_Optimization\Surrogate_Optimization\Surrogate_Optimization\Surrogate_Optimization\EELMetamodel\EELSurrogate.cu(606): note: placeholders and their parameters expect 0 variadic arguments, but 1 were provided
+C:\Users\Megawhopper\Documents\GitHub\Surrogate_Optimization\Surrogate_Optimization\Surrogate_Optimization\Surrogate_Optimization\EELMetamodel\EELSurrogate.cu(650): warning C4244: 'initializing': conversion from 'double' to 'int', possible loss of data
+C:\Users\Megawhopper\Documents\GitHub\Surrogate_Optimization\Surrogate_Optimization\Surrogate_Optimization\Surrogate_Optimization\EELMetamodel\EELSurrogate.cu(684): warning C4244: 'initializing': conversion from 'double' to 'int', possible loss of data
 C:/Users/Megawhopper/Documents/GitHub/Surrogate_Optimization/Surrogate_Optimization/Surrogate_Optimization/Surrogate_Optimization/EELMetamodel/kernel.cu(28): warning C4244: 'argument': conversion from 'double' to 'int', possible loss of data
   EELMetamodel.vcxproj -> C:\Users\Megawhopper\Documents\GitHub\Surrogate_Optimization\Surrogate_Optimization\Surrogate_Optimization\Surrogate_Optimization\EELMetamodel\x64\Debug\EELMetamodel.exe

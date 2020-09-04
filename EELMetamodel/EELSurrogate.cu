@@ -173,9 +173,9 @@ double metamodelSetup(int dimension, double theta, double variance, double a, do
     //Extend the covariance vector between test site and design sites. 
     tempMatrixTwo[dimension + 0*dimension] = 1; //Add 1 to the last row of the matrix, unclear if this is correct
     
-    printf("SETUP: Before Invert Matrix\n");
+    //printf("SETUP: Before Invert Matrix\n");
     //printMatrix(identityMatrix, dimension);
-    printMatrix(designSite, dimension);
+    //printMatrix(designSite, dimension);
     //Calculate inverse of extended covariance matrix
     //cudaStatus = invertMatrix(identityMatrix, tempMatrixOne, dimension + 1);
     cudaStatus = invertMatrix(identityMatrix, designSite, dimension);
@@ -183,8 +183,8 @@ double metamodelSetup(int dimension, double theta, double variance, double a, do
         goto SetupError;
     }
 
-    printf("SETUP: After Invert Matrix\n");
-    printMatrix(identityMatrix, dimension);
+    //printf("SETUP: After Invert Matrix\n");
+    //printMatrix(identityMatrix, dimension);
 
     //Calculate extended weights vector, tempMatrixTwo will hold the result
     //cudaStatus = calculateWeightVector(tempMatrixTwo, tempMatrixOne, tempMatrixTwo, dimension + 1);
@@ -534,7 +534,7 @@ cudaError_t invertMatrix(double* outputMatrix, double* inputMatrix, int dimensio
     int matrixMemoryAllocationSize = pow(dimension, 2);
     cudaError_t cudaStatus = cudaSuccess;
 
-    cudaStatus = cudaMalloc((void**)&deviceBuffer, dimension * sizeof(double));
+    cudaStatus = cudaMalloc((void**)&deviceBuffer, 2*dimension * sizeof(double));
     if (cudaStatus != cudaSuccess) {
         goto InvertError;
     }
@@ -570,25 +570,17 @@ cudaError_t invertMatrix(double* outputMatrix, double* inputMatrix, int dimensio
     }
 
     for (int i = 0; i < dimension; i++) {
-        resetBuffers << <1, dimension >> > (deviceBuffer, deviceFlag, dimension);
+        resetBuffers << <dimension, dimension >> > (deviceBuffer, deviceFlag, dimension);
         normalizeRows << <dimension, dimension >> > (deviceIdenMat, deviceInMat, deviceBuffer, deviceFlag, dimension, i);
         pivotDown << <dimension, dimension >> > (deviceIdenMat, deviceInMat, dimension, i);
+        
     }
 
     for (int i = dimension - 1; i > 0; i--) {
-        resetBuffers << <1, dimension >> > (deviceBuffer, deviceFlag, dimension);
+        resetBuffers << <dimension, dimension >> > (deviceBuffer, deviceFlag, dimension);
         pivotUp << <dimension, dimension >> > (deviceIdenMat, deviceInMat, deviceBuffer, deviceFlag, dimension, i);
     }
-    /*
-    for (int i = 0; i < dimension; i++) {
-        
-        nonDiagNormalize<<<dimension, dimension>>> (deviceInMat, deviceIdenMat, dimension, i);
-        diagNormalize <<<dimension, dimension >>> (deviceInMat, deviceIdenMat, dimension, i);
-        gaussJordan <<<dimension, dimension >>> (deviceInMat, deviceIdenMat, dimension, i);
-        setZero <<<dimension, dimension >>> (deviceInMat, deviceIdenMat, dimension, i);
-        //printf("INDEX: %d\n", i);
-    }
-    */
+
     cudaStatus = cudaGetLastError();
     if (cudaStatus != cudaSuccess) {
         goto InvertError;
@@ -751,8 +743,8 @@ __global__ void resetBuffers(double* vals, bool* flag, int dimension) {
         *flag = false;
     }
 
-    //If the index is below the dimensions, set the value equal to zero. Not strictly necessary, but prevents data manipulation by extra threads in the case of thread optimization.
-    if (index < dimension) {
+    //If the index is below double the dimensions, set the value equal to zero. Not strictly necessary, but prevents data manipulation by extra threads in the case of thread optimization.
+    if (index < 2*dimension) {
         vals[index] = 0;
     }
     return;
@@ -793,7 +785,7 @@ __global__ void normalizeRows(double* idenMat, double* inMat, double* firstVals,
     //Grab the normalizing value for the particular thread by dividing the index by dimension in integer division. Decimal values should not be present.
     double normVal = firstVals[index % dimension];
     //If normalizing value is not zero and the index falls within the desired submatrix
-    if (normVal != 0 && index >= targetCol * dimension) {
+    if (normVal != 0 && index >= targetCol % dimension) { //normVal is a double, might not ever equal 0. Might need to figure out a better way to exclude values close to zero. Establish precision limits.
         //Divide the identity and input matrix position by the normalizing value
         idenMat[index] /= normVal;
         inMat[index] /= normVal;
@@ -819,11 +811,12 @@ __global__ void pivotDown(double* idenMat, double* inMat, int dimension, int tar
     int j = blockIdx.y * blockDim.y + threadIdx.y;
     int index = i + j * dimension;
 
-    //If the current index falls above the targeted row, subtract the target row column value from the index's value
-    if (index % dimension > targetRow) {
-        double temp = inMat[index - (index % dimension - targetRow)];
-        idenMat[index] -= temp;
-        inMat[index] -= temp;
+    //If the current index falls above the targeted row and the leading element is not zero, subtract the target row column value from the index's value
+    if ( (index % dimension > targetRow) && (inMat[index % dimension + targetRow*dimension] != 0)) {
+        //double temp = inMat[index - (index % dimension - targetRow)];
+        int temp = index - (index % dimension - targetRow);
+        idenMat[index] -= idenMat[temp];
+        inMat[index] -= inMat[temp];
     }
     return;
 }
@@ -862,73 +855,9 @@ __global__ void pivotUp(double* idenMat, double* inMat, double* lastVals, bool* 
     //If the index falls in a row below the target, perform subtraction operations
     if (index % dimension < targetRow ) {
         //Multiply the index value by the trailing row value and subtract value from current index in both matrices
-        double temp = lastVals[index % dimension] * inMat[index + targetRow - (index % dimension)];
-        idenMat[index] -= temp;
-        inMat[index] -= temp;
+        idenMat[index] -= lastVals[index % dimension] * idenMat[index + targetRow - (index % dimension)];
+        inMat[index] -= lastVals[index % dimension] * inMat[index + targetRow - (index % dimension)];
     }
-    return;
-}
-//Old inversion functions
-__global__ void nonDiagNormalize(double* inputMatrix, double* identityMatrix, int n, int i) {
-    int x = blockIdx.x * blockDim.x + threadIdx.x;
-    int y = blockIdx.y * blockDim.y + threadIdx.y;
-
-    if ((x < n) && (y < n)) {
-        if ((x == i) && (x != y)) {
-
-            identityMatrix[x * n + y ] /= inputMatrix[i * n + i];
-            inputMatrix[x * n + y ] /= inputMatrix[i * n + i];
-
-        }
-    }
-    return;
-}
-
-__global__ void diagNormalize(double* inputMatrix, double* identityMatrix, int n, int i) {
-    int x = blockIdx.x * blockDim.x + threadIdx.x;
-    int y = blockIdx.y * blockDim.y + threadIdx.y;
-    
-    if ((x < n) && (y < n)) {
-        if ((x == y) && (x == i)) {
-
-            identityMatrix[x * n + y] /= inputMatrix[i * n + i];
-            inputMatrix[x * n + y] /= inputMatrix[i * n + i];
-        }
-    }
-
-    return;
-}
-
-__global__ void gaussJordan(double* inputMatrix, double* identityMatrix, int n, int i) {
-    int x = blockIdx.x * blockDim.x + threadIdx.x;
-    int y = blockIdx.y * blockDim.y + threadIdx.y;
-    
-    if ((x < n) && (y < n)) {
-        if (x != i) {
-            identityMatrix[x *n  + y] -= identityMatrix[i * n + y] * inputMatrix[x * n + i];
-            if (y != i) {
-                inputMatrix[x*n  + y] -= inputMatrix[i * n + y] * inputMatrix[x * n + i];
-            }
-
-        }
-    }
-
-    return;
-}
-
-__global__ void setZero(double* inputMatrix, double* identityMatrix, int n, int i) {
-    int x = blockIdx.x * blockDim.x + threadIdx.x;
-    int y = blockIdx.y * blockDim.y + threadIdx.y;
-
-    if ((x < n) && (y < n)) {
-        if (x != i) {
-            if (y == i) {
-                printf("Setting %f to 0: %d\n", inputMatrix[x + y * n], x + y * n);
-                inputMatrix[x * n + y] = 0;
-            }
-        }
-    }
-
     return;
 }
 

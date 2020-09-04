@@ -11,7 +11,7 @@ Purpose: This file is for the purposes of writing Metamodel test code.
 int main(int argc, char* argv)
 {
     const int arraySize = 9;
-    double dummyDesignSite[arraySize] = { 1, 0, 0, 5, 1, 0, 5, 2, 1};
+    double dummyDesignSite[arraySize] = { 2, 1, 3, 5, 2, 3, 5, 2, 9};
     double dummyTestSite[arraySize] = { 10, 11, 0, 0};
     double dummyDesignSiteValues[arraySize] = { 0, 0, 0, 0 };
     double result = -1;
@@ -21,8 +21,8 @@ int main(int argc, char* argv)
     double variance = 0;
     cudaError_t cudaStatus = cudaSuccess;
     
-    printf("MAIN\n");
-    printMatrix(dummyDesignSite, sqrt(arraySize));
+    //printf("MAIN\n");
+    //printMatrix(dummyDesignSite, sqrt(arraySize));
 
     //Perform metamodel Kriging operations
     result = metamodelSetup(sqrt(arraySize), theta, variance, aVal, dummyDesignSite, dummyTestSite, dummyDesignSiteValues);
