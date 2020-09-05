@@ -138,9 +138,6 @@ double metamodelSetup(int dimension, double theta, double variance, double a, do
         goto SetupError;
     }
 
-    //printf("SETUP: Distance between designSite and designSiteValues\n");
-    //printMatrix(tempMatrixOne, dimension);
-    
     //Calculate distance between test site and design site. tempMatrixTwo will hold the output
     //cudaStatus = calculateDistanceBetweenMatrixVector(tempMatrixTwo, designSite, testSite, dimension);
     if (cudaStatus != cudaSuccess) {
@@ -173,18 +170,11 @@ double metamodelSetup(int dimension, double theta, double variance, double a, do
     //Extend the covariance vector between test site and design sites. 
     tempMatrixTwo[dimension + 0*dimension] = 1; //Add 1 to the last row of the matrix, unclear if this is correct
     
-    //printf("SETUP: Before Invert Matrix\n");
-    //printMatrix(identityMatrix, dimension);
-    //printMatrix(designSite, dimension);
     //Calculate inverse of extended covariance matrix
     //cudaStatus = invertMatrix(identityMatrix, tempMatrixOne, dimension + 1);
-    cudaStatus = invertMatrix(identityMatrix, designSite, dimension);
     if (cudaStatus != cudaSuccess) {
         goto SetupError;
     }
-
-    //printf("SETUP: After Invert Matrix\n");
-    //printMatrix(identityMatrix, dimension);
 
     //Calculate extended weights vector, tempMatrixTwo will hold the result
     //cudaStatus = calculateWeightVector(tempMatrixTwo, tempMatrixOne, tempMatrixTwo, dimension + 1);
@@ -194,10 +184,12 @@ double metamodelSetup(int dimension, double theta, double variance, double a, do
 
     //Calculate estimate value at test site, the ultimate output. 
     //cudaStatus = multiplyMatrices(tempMatrixTwo, designSiteValues, dimension); //Only consider elements within the dimension as the final value in the weight matrix is the lamda value (AKA not needed)
+    cudaStatus = multiplyMatrices(designSite, designSiteValues, dimension);
     if (cudaStatus != cudaSuccess) {
         goto SetupError;
     }
-
+    printf("\nmultiplyMatrices\n");
+    printMatrix(designSite, dimension);
     //Grab the first, and only, value of tempMatrixTwo as the ultimate output value
     //outputValue = tempMatrixTwo[0];
 
@@ -863,12 +855,18 @@ __global__ void pivotUp(double* idenMat, double* inMat, double* lastVals, bool* 
 
 //This might yield race condition errors
 __global__ void multiplyMatrix(double* output, double* firInput, double* secInput, int dimension) {
-    int x = blockIdx.x;
-    int y = threadIdx.x;
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    int j = blockIdx.y * blockDim.y + threadIdx.y;
+    //Generate index for the output based on thread and block parameters
+    int index = i + j * dimension;
     
-    //Multiple each element pair and then sum them together
-    for (int i = 0; i < dimension; i++) {
-        output[x + y * dimension] += firInput[i + y * dimension] * secInput[x + i * dimension];
+    //Calculate target row and column values from the index to allow for dot product to occur
+    int row = index % dimension;
+    int col = index / dimension;
+
+    //Multiply each element pair and then sum them together
+    for (int k = 0; k < dimension; k++) {
+        output[index] += firInput[row + k * dimension] * secInput[k +  col * dimension];
     }
 
     return;

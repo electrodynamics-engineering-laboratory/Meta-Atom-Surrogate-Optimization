@@ -13,7 +13,7 @@ int main(int argc, char* argv)
     const int arraySize = 9;
     double dummyDesignSite[arraySize] = { 2, 1, 3, 5, 2, 3, 5, 2, 9};
     double dummyTestSite[arraySize] = { 10, 11, 0, 0};
-    double dummyDesignSiteValues[arraySize] = { 0, 0, 0, 0 };
+    double dummyDesignSiteValues[arraySize] = { 1, 3, 4, 22, 9, 0, 8, 2, 11 };
     double result = -1;
 
     double theta = 1;
@@ -21,8 +21,10 @@ int main(int argc, char* argv)
     double variance = 0;
     cudaError_t cudaStatus = cudaSuccess;
     
-    //printf("MAIN\n");
-    //printMatrix(dummyDesignSite, sqrt(arraySize));
+    printf("MAIN\n\nDesign Site\n");
+    printMatrix(dummyDesignSite, sqrt(arraySize));
+    printf("\nDesign Site Values\n");
+    printMatrix(dummyDesignSiteValues, sqrt(arraySize));
 
     //Perform metamodel Kriging operations
     result = metamodelSetup(sqrt(arraySize), theta, variance, aVal, dummyDesignSite, dummyTestSite, dummyDesignSiteValues);
