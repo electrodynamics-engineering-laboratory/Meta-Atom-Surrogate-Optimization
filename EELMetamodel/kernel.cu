@@ -21,11 +21,6 @@ int main(int argc, char* argv)
     double variance = 0;
     cudaError_t cudaStatus = cudaSuccess;
     
-    printf("MAIN\n\nDesign Site\n");
-    printMatrix(dummyDesignSite, sqrt(arraySize));
-    printf("\nDesign Site Values\n");
-    printMatrix(dummyDesignSiteValues, sqrt(arraySize));
-
     //Perform metamodel Kriging operations
     result = metamodelSetup(sqrt(arraySize), theta, variance, aVal, dummyDesignSite, dummyTestSite, dummyDesignSiteValues);
     if (cudaStatus != cudaSuccess) {
