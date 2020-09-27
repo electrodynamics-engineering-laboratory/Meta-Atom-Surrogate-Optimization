@@ -6,18 +6,66 @@ Modified: 9-5-2020
 Author: Joseph Haun
  @END_DOC_FILE!*/
 
-#include "cuda_runtime.h"
-#include "device_launch_parameters.h"
+//Needed to provide full path for CUDA functions. This should be changed for the local machine, unless Visual Studio is setup correctly.
+//CUDA libraries
+#include "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.0\include\cuda_runtime.h"
+#include "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.0\include\device_launch_parameters.h"
+#include <C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.0\include\cuda_fp16.h>
+
+//Standard C++ libraries
 #include <stdio.h>
 #include <iostream>
 #include <math.h>
-#include <cuda_fp16.h>
-#include <cublas_v2.h>
 #include <conio.h>
+#include <fstream>
+#include <vector>
+#include <string>
+#include <sstream>
 
 //#include <cuComplex.h> //Unable to find proper documentation for cuComplex functionality. As such, some of the documentation relating to complex values is meaningless. 
 
 //Begin CPU Function Definitions
+/* @BEGIN_DOC_FUNC!
+Function:    colMajIndex(int x, int y, int dimension)
+Purpose:     Provide a CPU version of a column-major index given two-dimensional coordinates.
+Inputs:      x (int) - The x coordinate of the matrix
+             y (int) - The y coordinate of the matrix
+             dimension (int) - The dimensionality of the matrix. 
+Outputs:     coordinate (int) - The coordinate in a flat column-major matrix.
+@END_DOC_FUNC! */
+int colMajIndex(int x, int y, int dimension);
+
+/* @BEGIN_DOC_FUNC!
+Function:    rowMajIndex(int x, int y, int dimension)
+Purpose:     Provide a CPU version of a row-major index given two-dimensional coordinates.
+Inputs:      x (int) - The x coordinate of the matrix
+             y (int) - The y coordinate of the matrix
+             dimension (int) - The dimensionality of the matrix.
+Outputs:     coordinate (int) - The coordinate in a flat column-major matrix.
+@END_DOC_FUNC! */
+int rowMajIndex(int x, int y, int dimension);
+
+/* @BEGIN_DOC_FUNC!
+Function:    readInputFile(std::string fileName, int dimension)
+Purpose:     Read a CSV file and format the data into a column-major formatted matrix. Automatically assumes zero header lines to skip.
+Inputs:      fileName (std::string) - The file path of the CSV to open and read.
+             dimension (int) - The number of lines and columns to read in from the file.
+Outputs:     fileValues (double*) - The values within a flat column-major formatted matrix.
+Notes:       The returned matrix is in column-major format.
+@END_DOC_FUNC! */
+double* readInputFile(std::string fileName, int dimension);
+
+/* @BEGIN_DOC_FUNC!
+Function:    readInputFile(std::string fileName, int dimension, int headerLines)
+Purpose:     Read a CSV file and format the data into a column-major formatted matrix. 
+Inputs:      fileName (std::string) - The file path of the CSV to open and read.
+             dimension (int) - The number of lines and columns to read in from the file.
+             headerLines (int) - An integer that indicates the number of header lines to skip. 
+Outputs:     fileValues (double*) - The estimator value that is calculated for the given target, design sites, and design site values.
+Notes:       The returned matrix is in column-major format.
+@END_DOC_FUNC! */
+double* readInputFile(std::string fileName, int dimension, int headerLines);
+
 /* @BEGIN_DOC_FUNC!
 Function:    metamodelSetup(int dimension, double theta, double variance, double a, double* designSite, double* testSite, double* designSiteValues)
 Purpose:     Set up and perform calculations on the GPU that relate to a Kriging metamodel
@@ -139,6 +187,8 @@ Outputs:     None
 Notes:       All matrices are in column-major format.
 @END_DOC_FUNC! */
 void printMatrix(double inArray[], int dimension);
+
+void printMatrix(double inArray[], int numRows, int numColumns);
 
 //Begin GPU Function Definitions
 /* @BEGIN_DOC_FUNC!
@@ -280,6 +330,81 @@ Notes:       All matrices are in column-major format.
 __global__ void createIdentMat(double* matrix, int dimension);
 
 //Begin Function Implementations
+int colMajIndex(int x, int y, int dimension) {
+    return x + y * dimension;
+}
+
+int rowMajIndex(int x, int y, int dimension) {
+    return x * dimension + y;
+}
+
+double* readInputFile(std::string fileName, int dimension) {
+    //Assume no header lines
+    return readInputFile(fileName, dimension, 0);
+}
+
+double* readInputFile(std::string fileName, int dimension, int headerLines) {
+
+    //Create filestream object and open target file
+    std::fstream fileObject;
+    fileObject.open(fileName, std::fstream::in);
+
+    std::vector<double> tempValues;
+
+
+    std::vector<std::string> row;
+    std::string line, word, temp;
+
+    int curRowIndex = 0;
+    int curColIndex = 0;
+    int headersSkipped = 0;
+
+    while (fileObject >> line) {
+        //Clear the vector of all values
+        row.clear();
+
+        //Break words apart
+        if (headersSkipped >= headerLines) {
+            std::stringstream inStream(line);
+            
+            while (getline(inStream, word, ',')) {
+                try {
+                    tempValues.push_back(std::stod(word.c_str()));
+                }
+                catch (const std::exception& e) {
+                    tempValues.push_back(0.0);
+                    printf("\nException occurred while attempting to convert '%s' to a double value. \nThe resulting output matrix has (%d, %d) set to zero.\n", word, curRowIndex, curColIndex);
+                }
+                
+                curColIndex++;
+                
+            }
+
+            //Reset row index and increment column index
+            curRowIndex++;
+            curColIndex = 0;
+        }
+        else {
+            headersSkipped++;
+        }
+        
+    }
+
+    fileObject.close();
+
+    //Allocate memory on heap for returned array and set all indices to 0.0
+    int fileLines = tempValues.size() / 10;
+    double* fileValues = (double*)malloc(tempValues.size() * sizeof(double));
+    for (int i = 0; i < fileLines; i++) {
+        for (int j = 0; j < dimension; j++) {
+            //printf("(%d,%d): %d -> %d\n", i, j, rowMajIndex(i,j,dimension), colMajIndex(i, j, fileLines));
+            fileValues[colMajIndex(i, j, fileLines)] = tempValues.at(rowMajIndex(i,j,dimension));
+        }
+    }
+
+    return fileValues;
+}
+
 double metamodelSetup(int dimension, double theta, double variance, double a, double* designSite, double* testSite, double* designSiteValues) {
     
     //Begin variable definitions for data to be passed to GPU
@@ -868,14 +993,14 @@ void printMatrix(double inArray[], int dimension) {
     std::cout << "{";
     for (int i = 0; i < dimension; i++) {
         for (int j = 0; j < dimension; j++) {
-            index = i + (j * dimension);
+            index = colMajIndex(i,j,dimension);
             //printf("printMatrix[%d] = %f\n", index, inArray[index]);
 
             if (j + 1 < dimension) {
-                printf("%0.60f,", inArray[index]);
+                printf("%0.5f,", inArray[index]);
             }
             else {
-                printf("%0.60f", inArray[index]);
+                printf("%0.5f", inArray[index]);
             }
 
         }
@@ -889,6 +1014,35 @@ void printMatrix(double inArray[], int dimension) {
 
     }
     return;
+}
+
+void printMatrix(double inArray[], int numRows, int numColumns) {
+    
+    int index = 0;
+    for (int i = 0; i < numRows; i++) {
+        for (int j = 0; j < numColumns; j++) {
+            index = colMajIndex(i,j,numRows);
+            //printf("printMatrix[%d] = %f\n", index, inArray[index]);
+
+            if (j + 1 < numColumns) {
+                printf("%0.5f,", inArray[index]);
+            }
+            else {
+                printf("%0.5f", inArray[index]);
+            }
+
+        }
+
+        if (i + 1 < numRows) {
+            printf(";\n");
+        }
+        else {
+            printf("}\n");
+        }
+
+    }
+    return;
+
 }
 
 //Begin CUDA Function Implementations
