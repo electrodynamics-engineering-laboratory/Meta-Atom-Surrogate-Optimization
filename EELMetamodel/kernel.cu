@@ -1,13 +1,13 @@
 /*
 File: kernel.cu
 Date: 2-24-2020
-Modified: 8-2-2020
+Modified: 1-31-2021
 Author: Joe Haun
 Purpose: This file is for the purposes of writing Metamodel test code. 
 */
 
 #include <iostream>
-#include "EELSurrogate.cu"
+//#include "EELSurrogate.cu"
 
 int main(int argc, char* argv)
 {
