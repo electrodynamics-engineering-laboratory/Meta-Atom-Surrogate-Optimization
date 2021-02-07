@@ -7,9 +7,9 @@ Purpose: This file is for the purposes of writing Metamodel test code.
 */
 
 #include <iostream>
-//#include "EELSurrogate.cu"
+#include "EELSurrogate.cu"
 
-int main(int argc, char* argv)
+int main(int argc, char** argv)
 {
     const int arraySize = 9;
     double dummyDesignSite[arraySize] = { 2, 1, 3, 5, 2, 3, 5, 2, 9};
