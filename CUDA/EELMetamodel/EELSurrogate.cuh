@@ -5,15 +5,6 @@
    Notes: 
 */
 
-#ifndef SURROGATE_H
-#define SURROGATE_H
-
-//Needed to provide full path for CUDA functions on a Windows System. This should be changed for the local machine, unless Visual Studio is setup correctly.
-//CUDA libraries
-//#include "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.0\include\cuda_runtime.h"
-//#include "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.0\include\device_launch_parameters.h"
-//#include <C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.0\include\cuda_fp16.h>
-
 //Standard C++ libraries
 #include <stdio.h>
 #include <iostream>
@@ -23,6 +14,15 @@
 #include <vector>
 #include <string>
 #include <sstream>
+
+#ifndef SURROGATE_H
+#define SURROGATE_H
+
+//Needed to provide full path for CUDA functions on a Windows System. This should be changed for the local machine, unless Visual Studio is setup correctly.
+//CUDA libraries
+//#include "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.0\include\cuda_runtime.h"
+//#include "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.0\include\device_launch_parameters.h"
+//#include <C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.0\include\cuda_fp16.h>
 
 //Begin CPU Function Definitions
 /* @BEGIN_DOC_FUNC!

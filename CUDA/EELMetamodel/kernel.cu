@@ -7,7 +7,7 @@ Purpose: This file is for the purposes of writing Metamodel test code.
 */
 
 #include <iostream>
-#include "EELSurrogate.cu"
+#include "EELSurrogate.cuh"
 
 int main(int argc, char** argv)
 {

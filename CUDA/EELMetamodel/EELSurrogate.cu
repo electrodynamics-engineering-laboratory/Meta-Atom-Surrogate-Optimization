@@ -2,7 +2,7 @@
 File: EELSurrogate.cu
 Purpose: This file contains the functions to implement a Kriging Surrogate model with NxN matrices in column-major format.
 Created: 2-24-2020
-Modified: 2-7-2021
+Modified: 2-17-2021
 Author: Joseph Haun
  @END_DOC_FILE!*/
 
