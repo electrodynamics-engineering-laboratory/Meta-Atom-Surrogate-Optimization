@@ -7,6 +7,8 @@
 
 //Standard C++ libraries
 #include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
 #include <iostream>
 #include <math.h>
 //#include <conio.h>
@@ -46,25 +48,46 @@ Outputs:     coordinate (int) - The coordinate in a flat column-major matrix.
 int rowMajIndex(int x, int y, int dimension);
 
 /* @BEGIN_DOC_FUNC!
-Function:    readInputFile(std::string fileName, int dimension)
+Function:    readInputFile(std::string fileName)
 Purpose:     Read a CSV file and format the data into a column-major formatted matrix. Automatically assumes zero header lines to skip.
 Inputs:      fileName (std::string) - The file path of the CSV to open and read.
-             dimension (int) - The number of lines and columns to read in from the file.
 Outputs:     fileValues (double*) - The values within a flat column-major formatted matrix.
 Notes:       The returned matrix is in column-major format.
 @END_DOC_FUNC! */
-double* readInputFile(std::string fileName, int dimension);
+double* readInputFile(std::string fileName);
 
 /* @BEGIN_DOC_FUNC!
-Function:    readInputFile(std::string fileName, int dimension, int headerLines)
+Function:    readInputFile(std::string fileName, int headerLines)
 Purpose:     Read a CSV file and format the data into a column-major formatted matrix. 
 Inputs:      fileName (std::string) - The file path of the CSV to open and read.
-             dimension (int) - The number of lines and columns to read in from the file.
              headerLines (int) - An integer that indicates the number of header lines to skip. 
 Outputs:     fileValues (double*) - The estimator value that is calculated for the given target, design sites, and design site values.
 Notes:       The returned matrix is in column-major format.
 @END_DOC_FUNC! */
-double* readInputFile(std::string fileName, int dimension, int headerLines);
+double* readInputFile(std::string fileName, int headerLines);
+
+/* @BEGIN_DOC_FUNC!
+Function:    generateSample(int numRows, float size, bool random)
+Purpose:     Create an array of sample indices to be chosen from the main data matrix.
+Inputs:      numRows (int) - The number of rows from which to choose.
+	     size (float) - The percentage of the total rows to use for a sample. 
+	     random (bool) - Determine if the sample is random or not.
+Outputs:     sampleChoices (std::vector<int>) - A vector of indices to use for the sample.
+Notes:       The returned matrix is in column-major format.
+@END_DOC_FUNC! */
+std::vector<int> generateSample(int numRows, float size, bool random);
+
+/* @BEGIN_DOC_FUNC!
+Function:    appendRow(double* inputMatrix, double* outputMatrix, int inputRow, int outputRow)
+Purpose:     Copy one row to another row.
+Inputs:	     inputMatrix (double*) - The matrix to copy the row from.
+	     outputMatrix (double*) - The matrix to append the row.
+	     inputRow (int) - The target row from the input matrix.
+	     outputRow (int) - The target row in the output matrix.
+Outputs:     sampleChoices (int*) - An array of indices to use for the sample.
+Notes:       The returned matrix is in column-major format.
+@END_DOC_FUNC! */
+void appendRow(double* inputMatrix, double* outputMatrix, int inputRow, int outputRow);
 
 /* @BEGIN_DOC_FUNC!
 Function:    metamodelSetup(int dimension, double theta, double variance, double a, double* designSite, double* testSite, double* designSiteValues)

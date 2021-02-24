@@ -48,7 +48,7 @@ int main(int argc, char** argv)
     std::cin >> variance;
     printf("Entered: %f\n", variance);
 
-    double* inputArray = readInputFile(filePath, dimension, headerLines);
+    double* inputArray = readInputFile(filePath, headerLines);
     
     printf("Read Matrix\n");
     printMatrix(inputArray, 103, 10);

@@ -20,25 +20,29 @@ int rowMajIndex(int x, int y, int dimension) {
     return x * dimension + y;
 }
 
-double* readInputFile(std::string fileName, int dimension) {
+double* readInputFile(std::string fileName) {
     //Assume no header lines
-    return readInputFile(fileName, dimension, 0);
+    return readInputFile(fileName, 0);
 }
 
-double* readInputFile(std::string fileName, int dimension, int headerLines) {
+double* readInputFile(std::string fileName, int headerLines) {
 
     //Create filestream object and open target file
     std::fstream fileObject;
     fileObject.open(fileName, std::fstream::in);
 
+    //Declare vector for file data
     std::vector<double> tempValues;
 
-
+    //Declare vector and strings for parsing
     std::vector<std::string> row;
     std::string line, word, temp;
 
+    //Declare counters
     int curRowIndex = 0;
     int curColIndex = 0;
+    int numRows = 0;
+    int numCols = 0;
     int headersSkipped = 0;
 
     while (fileObject >> line) {
@@ -50,6 +54,7 @@ double* readInputFile(std::string fileName, int dimension, int headerLines) {
             std::stringstream inStream(line);
             
             while (getline(inStream, word, ',')) {
+	    	//Attempt to convert the word to a double.
                 try {
                     tempValues.push_back(std::stod(word.c_str()));
                 }
@@ -62,8 +67,12 @@ double* readInputFile(std::string fileName, int dimension, int headerLines) {
                 
             }
 
-            //Reset row index and increment column index
-            curRowIndex++;
+	    if(curColIndex > numCols){
+	        numCols = curColIndex;
+	    }	    
+	    
+            //Reset column index and increment row count
+            numRows++;
             curColIndex = 0;
         }
         else {
@@ -75,16 +84,72 @@ double* readInputFile(std::string fileName, int dimension, int headerLines) {
     fileObject.close();
 
     //Allocate memory on heap for returned array and set all indices to 0.0
-    int fileLines = tempValues.size() / 10;
     double* fileValues = (double*)malloc(tempValues.size() * sizeof(double));
-    for (int i = 0; i < fileLines; i++) {
-        for (int j = 0; j < dimension; j++) {
+    for (int i = 0; i < numRows; i++) {
+        for (int j = 0; j < numCols; j++) {
             //printf("(%d,%d): %d -> %d\n", i, j, rowMajIndex(i,j,dimension), colMajIndex(i, j, fileLines));
             fileValues[colMajIndex(i, j, fileLines)] = tempValues.at(rowMajIndex(i,j,dimension));
         }
     }
 
     return fileValues;
+}
+
+std::vector<int> generateSample(int numRows, float size, bool random){
+    //Declare output vector
+    std::vector<int> sample;
+
+    //Initialize random seed
+    srand(time(NULL));
+    
+
+    int numSamples = 0;
+
+    if(size > 1.0 || size < 0.0){
+       numSamples = numRows;
+    }
+    else{
+       numSamples = numRows*size;
+    }   
+
+    //Declare sample and check counter
+    int count = 0;
+    int checkCounter = 0;
+    //While there are still samples to generate
+    while(count < numSamples){
+        //If the sample is to be random
+        if(random == true){
+	    //Push a random value onto the vector
+	    sample.push_back(rand%numRows)
+	    //Reset the check counter
+	    checkCounter = 0;
+	    //Check the previous values to ensure uniqueness
+	    while(checkCounter < count){
+	        //If not unique
+	        if(sample.at(checkCounter) == sample.at(count)){
+		    //Calculate another random value
+		    sample.at(count) = rand%numRows;
+		    //Reset the counter to start again
+		    checkCounter = 0;
+		}
+		//Otherwise, increment the counter
+		else{
+		    checkCounter++;
+		}
+	    }
+	}
+	else{
+ 	    sample.push_back(count);
+	}
+	count++;
+    }
+
+    return sample;
+}
+
+void appendRow(double* inputMatrix, double* outputMatrix, int inputRow, int outputRow){
+
+     return;
 }
 
 double metamodelSetup(int dimension, double theta, double variance, double a, double* designSite, double* testSite, double* designSiteValues) {
