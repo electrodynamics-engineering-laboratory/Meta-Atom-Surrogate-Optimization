@@ -1,8 +1,6 @@
 /* @BEGIN_DOC_FILE!
 File: EELSurrogate.cu
-Purpose: This file contains the functions to implement a Kriging Surrogate model with NxN matrices in column-major format.
-Created: 2-24-2020
-Modified: 2-17-2021
+Purpose: This file contains the functions to implement a Kriging Surrogate model from an input data file.
 Author: Joseph Haun
  @END_DOC_FILE!*/
 
@@ -13,11 +11,11 @@ Author: Joseph Haun
 
 //Begin Function Implementations
 int colMajIndex(int x, int y, int dimension) {
-    return x + y * dimension;
+    return x + y * dimension; #Dimension is columns
 }
 
 int rowMajIndex(int x, int y, int dimension) {
-    return x * dimension + y;
+    return x * dimension + y; #Dimension is rows
 }
 
 double* readInputFile(std::string fileName) {
@@ -88,7 +86,7 @@ double* readInputFile(std::string fileName, int headerLines) {
     for (int i = 0; i < numRows; i++) {
         for (int j = 0; j < numCols; j++) {
             //printf("(%d,%d): %d -> %d\n", i, j, rowMajIndex(i,j,dimension), colMajIndex(i, j, fileLines));
-            fileValues[colMajIndex(i, j, fileLines)] = tempValues.at(rowMajIndex(i,j,dimension));
+            fileValues[colMajIndex(i, j, numRows)] = tempValues.at(rowMajIndex(i,j,numCols));
         }
     }
 
@@ -100,7 +98,7 @@ std::vector<int> generateSample(int numRows, float size, bool random){
     std::vector<int> sample;
 
     //Initialize random seed
-    srand(time(NULL));
+    std::srand(time(nullptr));
     
 
     int numSamples = 0;
@@ -120,7 +118,7 @@ std::vector<int> generateSample(int numRows, float size, bool random){
         //If the sample is to be random
         if(random == true){
 	    //Push a random value onto the vector
-	    sample.push_back(rand%numRows)
+	    sample.push_back(std::rand()%numRows);
 	    //Reset the check counter
 	    checkCounter = 0;
 	    //Check the previous values to ensure uniqueness
@@ -128,7 +126,7 @@ std::vector<int> generateSample(int numRows, float size, bool random){
 	        //If not unique
 	        if(sample.at(checkCounter) == sample.at(count)){
 		    //Calculate another random value
-		    sample.at(count) = rand%numRows;
+		    sample.at(count) = std::rand()%numRows;
 		    //Reset the counter to start again
 		    checkCounter = 0;
 		}
@@ -147,11 +145,71 @@ std::vector<int> generateSample(int numRows, float size, bool random){
     return sample;
 }
 
-void appendRow(double* inputMatrix, double* outputMatrix, int inputRow, int outputRow){
+void parseRawData(double* outputParameters, double* outputData, double* inputData, int rows, int columns, int dataColumns, std::vector<int> samples){
 
-     return;
+    //If either pointer are allocated, free the memory to prevent leaks
+    if(outputParameters == nullptr){
+        free(outputParameters);
+    }
+    if(outputData == nullptr){
+        free(outputData);
+    }
+    //Dynamically memory for output matrices
+    outputParameters = (double*)malloc(rows*(columns-dataColumns) * sizeof(double));
+    outputData = (double*)malloc(rows*dataColumns * sizeof(double));
+     
+    //For all sample rows
+    for(int i = 0; i < samples.size(); i++){
+        //For all columns in the row
+        for(int j = 0; j < columns; j++){
+            //If the column index is within the parameters column
+            if(j < columns - dataColumns){
+                //Copy the value to the parameters matrix
+                outputParameters[colMajIndex(i, j, columns-dataColumns)] = inputData[colMajIndex(i, j, columns)];   
+            }
+            else{
+                //Copy the value to the data matrix
+                outputData[colMajIndex(i, j, dataColumns)] = inputData[colMajIndex(i, j, columns)];
+            }
+        }
+    }
+    return;
 }
 
+double kriging(std::string filename, int headerLines, int dataColumns, double theta, double variance, double nuggetEffect){
+    //Begin variable definitions for data to be passed to GPU
+    cudaError_t cudaStatus = cudaSuccess;
+    int matrixMemoryAllocationSize = pow(dimension+1, 2);
+    int vectorMemoryAllocationSize = dimension+1;
+    double outputValue = 0;
+
+    // Choose which GPU to run on, change this on a multi-GPU system.
+    cudaStatus = cudaSetDevice(0);
+    if (cudaStatus != cudaSuccess){
+        goto KrigingError;
+    }
+
+    //Create a dynamic allocation of memory for the identity matrix and populate with values
+    double* identityMatrix = (double*) malloc(matrixMemoryAllocationSize * sizeof(double));
+    
+    //Create a dynamic allocation of memory for a temporary holding matrix
+    double* tempMatrixOne = (double*) malloc(extendedMatrixMemoryAllocationSize * sizeof(double));
+    double* tempMatrixTwo = (double*) malloc(extendedMatrixMemoryAllocationSize * sizeof(double));
+    for (int i = 0; i < pow(dimension+1,2); i++) {
+        tempMatrixOne[i] = 0;
+        tempMatrixTwo[i] = 0;
+        identityMatrix[i] = 0;
+    }
+
+KrigingError:
+   
+    free(identityMatrix);
+    free(tempMatrixOne);
+    free(tempMatrixTwo);
+    
+    return outputValue;
+}   
+    
 double metamodelSetup(int dimension, double theta, double variance, double a, double* designSite, double* testSite, double* designSiteValues) {
     
     //Begin variable definitions for data to be passed to GPU
@@ -246,9 +304,9 @@ double metamodelSetup(int dimension, double theta, double variance, double a, do
     outputValue = tempMatrixTwo[0];
 
     //Define error state
-    //Need to manage/report error state so that the output value can be returned NOT an error status
+    //Need to manage/report error state so that the output value can be returned NOT an error status 
 SetupError:
-    if (cudaStatus != cudaSuccess) {
+   if (cudaStatus != cudaSuccess) {
         std::cout << "SETUP: Device failed" << std::endl;
         std::cout << "SETUP: CUDA Error Code -> " << cudaGetErrorString(cudaStatus) << std::endl;
     }
@@ -793,11 +851,17 @@ void printMatrix(double inArray[], int numRows, int numColumns) {
 }
 
 //Begin CUDA Function Implementations
-__global__ void calcDistanceBetMats(double* outMat, double* inMatOne, double* inMatTwo, int dimension) {
+__global__ void calcDistance(double* outMat, double* inputOne, int inputOneRows, int inputOneCols, double* inMatTwo, int inputTwoRows, int inputTwoCols) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     int j = blockIdx.y * blockDim.y + threadIdx.y;
-    int index = i + j * dimension;
-    outMat[index] = std::pow(std::abs(inMatOne[index] - inMatTwo[index]),2);
+    //Generate thread index based on input two's columns
+    int index = i + j * inputTwoCols;
+    //Calculate specific i and j parameters based on input two's rows/cols
+    i = index % inputTwoCols;
+    j = index / inputTwoCols;
+    //For all elements 
+    //If index falls outside 
+    outMat[index] = std::pow(inputOne[index] - inputTwo[index],2);
     return;
 }
 

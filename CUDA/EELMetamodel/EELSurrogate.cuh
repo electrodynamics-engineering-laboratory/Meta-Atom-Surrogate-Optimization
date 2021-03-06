@@ -48,6 +48,16 @@ Outputs:     coordinate (int) - The coordinate in a flat column-major matrix.
 int rowMajIndex(int x, int y, int dimension);
 
 /* @BEGIN_DOC_FUNC!
+Function:    getMatrixDimensions(std::string fileName, int headerLines)
+Purpose:     Read a CSV file and determine the number of rows and columns in the data.
+Inputs:      fileName (std::string) - The file path of the CSV to open and read.
+	     headerLines (int) - The number of header lines to skip in the file.
+Outputs:     fileValues (std::vector<int>) - A vector with the number of rows and columns.
+Notes:       None
+@END_DOC_FUNC! */
+std::vector<int> getMatrixDimensions(std::string fileName, int headerLines);
+
+/* @BEGIN_DOC_FUNC!
 Function:    readInputFile(std::string fileName)
 Purpose:     Read a CSV file and format the data into a column-major formatted matrix. Automatically assumes zero header lines to skip.
 Inputs:      fileName (std::string) - The file path of the CSV to open and read.
@@ -57,7 +67,7 @@ Notes:       The returned matrix is in column-major format.
 double* readInputFile(std::string fileName);
 
 /* @BEGIN_DOC_FUNC!
-Function:    readInputFile(std::string fileName, int headerLines)
+Function:    readInputFile(std::string fileName, double* parameters, double* results, int headerLines)
 Purpose:     Read a CSV file and format the data into a column-major formatted matrix. 
 Inputs:      fileName (std::string) - The file path of the CSV to open and read.
              headerLines (int) - An integer that indicates the number of header lines to skip. 
@@ -65,6 +75,21 @@ Outputs:     fileValues (double*) - The estimator value that is calculated for t
 Notes:       The returned matrix is in column-major format.
 @END_DOC_FUNC! */
 double* readInputFile(std::string fileName, int headerLines);
+
+/* @BEGIN_DOC_FUNC!
+Function:    parseRawData(double* outputParameters, double* outputData, double* inputData, int rows, int columns, int dataColumns, std::vector<int> samples);
+Purpose:     Split data matrix into input and output matrices.
+Inputs:	     outputParameters (double*) -
+	     outputData (double*) -
+	     inputData (double*) - The matrix of data taken from the file
+	     numRows (int) - The number of rows in the raw data.
+	     numCols (int) - The number of columns in the raw data.
+	     dataColumns (int) - The number of columns, from the largest column index, to be used as data columns.
+	     samples (std::vector<int>) - A vector of sample rows to take from the input data.
+Outputs:     None
+Notes:       The input matrices are in column-major format. The first two pointers are assumed to be null pointers.
+@END_DOC_FUNC! */
+void parseRawData(double* outputParameters, double* outputData, double* inputData, int rows, int columns, int dataColumns, std::vector<int> samples);
 
 /* @BEGIN_DOC_FUNC!
 Function:    generateSample(int numRows, float size, bool random)
@@ -76,18 +101,6 @@ Outputs:     sampleChoices (std::vector<int>) - A vector of indices to use for t
 Notes:       The returned matrix is in column-major format.
 @END_DOC_FUNC! */
 std::vector<int> generateSample(int numRows, float size, bool random);
-
-/* @BEGIN_DOC_FUNC!
-Function:    appendRow(double* inputMatrix, double* outputMatrix, int inputRow, int outputRow)
-Purpose:     Copy one row to another row.
-Inputs:	     inputMatrix (double*) - The matrix to copy the row from.
-	     outputMatrix (double*) - The matrix to append the row.
-	     inputRow (int) - The target row from the input matrix.
-	     outputRow (int) - The target row in the output matrix.
-Outputs:     sampleChoices (int*) - An array of indices to use for the sample.
-Notes:       The returned matrix is in column-major format.
-@END_DOC_FUNC! */
-void appendRow(double* inputMatrix, double* outputMatrix, int inputRow, int outputRow);
 
 /* @BEGIN_DOC_FUNC!
 Function:    metamodelSetup(int dimension, double theta, double variance, double a, double* designSite, double* testSite, double* designSiteValues)
@@ -104,6 +117,20 @@ Notes:       All matrices are in column-major format.
 @END_DOC_FUNC! */
 //Function sets up and performs calculations on the GPU
 double metamodelSetup(int dimension, double theta, double variance, double a, double* designSite, double* testSite, double* designSiteValues );
+
+/* @BEGIN_DOC_FUNC!
+Function:    kriging(std::string filename, int headerLines, int dataColumns, double theta, double variance, double nuggetEffect)
+Purpose:     Set up and perform calculations on the GPU that relate to a Kriging metamodel
+Inputs:      filename (std::string) - The file of data to be read and use for calculations.
+             headerLines (int) - The number of lines to skip in the top of the data file.
+             dataColumns (int) - The number of columns from the largest column index that will be used as data columns. 
+             theta (double) - (THIS MIGHT BE AN INCORRECT DESCRIPTION) A value in radians that represents the angle between the two matrices, this value should only ever be real
+             variance (double) - The value of the variance to use in calculations.
+             nuggetEffect (double) - The nugget effect value to use in calculations.
+Outputs:     outputValue (double) - The estimator value that is calculated for the given target, design sites, and design site values.
+Notes:       None
+@END_DOC_FUNC! */
+double kriging(std::string filename, int headerLines, int dataColumns, double theta, double variance, double nuggetEffect);
 
 /* @BEGIN_DOC_FUNC!
 Function:    calculateGaussianCorrelation(double* outputMatrix, double* inMatrix, double variance, double a, double theta, int dimension)
@@ -154,7 +181,6 @@ Outputs:     cudaStatus (cudaError_t) - The error status of the CUDA operations.
 Notes:       All matrices are in column-major format. While the inputs for vectors have the same dimensionality as matrices, always ensure that the input vectors have all values outside 0 to dimension-1 set to zero. These indices are not ignored in calculations, but will not affect the calculations when set to zero.
 @END_DOC_FUNC! */
 cudaError_t calculateWeightVector(double* outputVector, double* invertedCovarianceMatrix, double* covarianceVector, int dimension);
-
 
 /* @BEGIN_DOC_FUNC!
 Function:    extendMatrix(double* outputMatrix, double* inputMatrix, int dimension)
@@ -215,16 +241,19 @@ void printMatrix(double inArray[], int numRows, int numColumns);
 
 //Begin GPU Function Definitions
 /* @BEGIN_DOC_FUNC!
-Function:    calcDistanceBetMats(double* outMat, double* inMatOne, double* inMatTwo, int dimension)
+Function:    calcDistanceBetMats(double* outMat, double* inputOne, int inputOneRows, int inputOneCols, double* inMatTwo, int inputTwoRows, int inputTwoCols)
 Purpose:     Calculate distance between two matrices on the GPU.
 Inputs:      outMat (double*) - a dimension-by-dimension matrix to be used as the output for calculations.
-             inMatOne (double*) - a dimension-by-dimension matrix.
-             inMatTwo (double*) - a dimension-by-dimension matrix.
-             dimension (int) - an integer value representing the number of valid rows for all matrices and vectors and the number of valid columns for all matrices
+             inputOne (double*) - A matrix of values.
+	     inputOneRows (int) - The number of rows in the first matrix.
+	     inputOneCols (int) - The number of columns in the first matrix.
+             inputTwo (double*) - A matrix of values.
+	     inputTwoRows (int) - The number of rows in the second matrix.
+	     inputTwoCols (int) - The number of columns in the second matrix.
 Outputs:     None
-Notes:       All matrices are in column-major format.
+Notes:       All matrices are in column-major format. While the two input rows can be dissimilar, ideally they should be equivalent for the matrix operations to calculate properly.
 @END_DOC_FUNC! */
-__global__ void calcDistanceBetMats(double* outMat, double* inMatOne, double* inMatTwo, int dimension);
+__global__ void calcDistance(double* outMat, double* inputOne, int inputOneRows, int inputOneCols, double* inMatTwo, int inputTwoRows, int inputTwoCols);
 
 /* @BEGIN_DOC_FUNC!
 Function:    calcDistanceBetMatVec(double* outMat, double* inMat, double* inVec, int dimension)
