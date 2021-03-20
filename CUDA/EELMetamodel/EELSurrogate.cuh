@@ -79,15 +79,15 @@ double* readInputFile(std::string fileName, int headerLines);
 /* @BEGIN_DOC_FUNC!
 Function:    parseRawData(double* outputParameters, double* outputData, double* inputData, int rows, int columns, int dataColumns, std::vector<int> samples);
 Purpose:     Split data matrix into input and output matrices.
-Inputs:	     outputParameters (double*) -
-	     outputData (double*) -
+Inputs:	     outputParameters (double*) - A pointer to an array that will hold the sample row parameters.
+	     outputData (double*) - A pointer to an array that will hold the sample row data.
 	     inputData (double*) - The matrix of data taken from the file
 	     numRows (int) - The number of rows in the raw data.
 	     numCols (int) - The number of columns in the raw data.
 	     dataColumns (int) - The number of columns, from the largest column index, to be used as data columns.
-	     samples (std::vector<int>) - A vector of sample rows to take from the input data.
+	     samples (int*) - An array of sample rows to take from the input data.
 Outputs:     None
-Notes:       The input matrices are in column-major format. The first two pointers are assumed to be null pointers.
+Notes:       The input matrices are in column-major format. The first two pointers are assumed to be NOT null.
 @END_DOC_FUNC! */
 void parseRawData(double* outputParameters, double* outputData, double* inputData, int rows, int columns, int dataColumns, std::vector<int> samples);
 
@@ -97,10 +97,10 @@ Purpose:     Create an array of sample indices to be chosen from the main data m
 Inputs:      numRows (int) - The number of rows from which to choose.
 	     size (float) - The percentage of the total rows to use for a sample. 
 	     random (bool) - Determine if the sample is random or not.
-Outputs:     sampleChoices (std::vector<int>) - A vector of indices to use for the sample.
+Outputs:     sampleChoices (int*) - An array of indices to use for the sample.
 Notes:       The returned matrix is in column-major format.
 @END_DOC_FUNC! */
-std::vector<int> generateSample(int numRows, float size, bool random);
+int* generateSample(int numRows, float size, bool random);
 
 /* @BEGIN_DOC_FUNC!
 Function:    metamodelSetup(int dimension, double theta, double variance, double a, double* designSite, double* testSite, double* designSiteValues)

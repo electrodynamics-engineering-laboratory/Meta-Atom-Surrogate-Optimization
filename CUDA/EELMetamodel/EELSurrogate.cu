@@ -93,16 +93,11 @@ double* readInputFile(std::string fileName, int headerLines) {
     return fileValues;
 }
 
-std::vector<int> generateSample(int numRows, float size, bool random){
-    //Declare output vector
-    std::vector<int> sample;
+int* generateSample(int numRows, float size, bool random){
 
-    //Initialize random seed
-    std::srand(time(nullptr));
-    
-
+    //Generate the samples number for the array
     int numSamples = 0;
-
+    //Enforce percentage limits
     if(size > 1.0 || size < 0.0){
        numSamples = numRows;
     }
@@ -110,66 +105,50 @@ std::vector<int> generateSample(int numRows, float size, bool random){
        numSamples = numRows*size;
     }   
 
-    //Declare sample and check counter
-    int count = 0;
-    int checkCounter = 0;
-    //While there are still samples to generate
-    while(count < numSamples){
-        //If the sample is to be random
-        if(random == true){
-	    //Push a random value onto the vector
-	    sample.push_back(std::rand()%numRows);
-	    //Reset the check counter
-	    checkCounter = 0;
-	    //Check the previous values to ensure uniqueness
-	    while(checkCounter < count){
-	        //If not unique
-	        if(sample.at(checkCounter) == sample.at(count)){
-		    //Calculate another random value
-		    sample.at(count) = std::rand()%numRows;
-		    //Reset the counter to start again
-		    checkCounter = 0;
-		}
-		//Otherwise, increment the counter
-		else{
-		    checkCounter++;
-		}
-	    }
-	}
-	else{
- 	    sample.push_back(count);
-	}
-	count++;
-    }
+    //Allocate output memory
+    int* samples (int*)malloc( numSamples* sizeof(int));
+    
+    //Initialize random seed
+    std::srand(time(nullptr));
 
-    return sample;
+    bool duplicate = false;
+    int checkCounter;
+    for(int i = 0; i < numSamples; i++){
+ 	samples[i] = std::rand()%numRows;
+	checkCounter = 0;
+    	while(i > 0 && duplicate == false && checkCounter <= i){
+	    //If the newly generated sample is already in the array
+	    if(samples[checkCounter] == samples[i]){
+	        //Generate new random value and reset counter
+	        samples[i] = std::rand()%numRows;
+		checkCounter = 0;
+	    }
+	    //Otherwise, increment counter
+	    checkCounter++;
+	}
+    }
+    return samples;
 }
 
-void parseRawData(double* outputParameters, double* outputData, double* inputData, int rows, int columns, int dataColumns, std::vector<int> samples){
+void parseRawData(double* outputParameters, double* outputData, double* inputData, int rows, int columns, int dataColumns, int* samples, int sampleCount){
 
-    //If either pointer are allocated, free the memory to prevent leaks
-    if(outputParameters == nullptr){
-        free(outputParameters);
+    //If either pointer are not allocated, return
+    if(outputParameters == nullptr || outputData == nullptr){
+        return;
     }
-    if(outputData == nullptr){
-        free(outputData);
-    }
-    //Dynamically memory for output matrices
-    outputParameters = (double*)malloc(rows*(columns-dataColumns) * sizeof(double));
-    outputData = (double*)malloc(rows*dataColumns * sizeof(double));
-     
+
     //For all sample rows
-    for(int i = 0; i < samples.size(); i++){
+    for(int i = 0; i < sampleCount; i++){
         //For all columns in the row
         for(int j = 0; j < columns; j++){
             //If the column index is within the parameters column
             if(j < columns - dataColumns){
                 //Copy the value to the parameters matrix
-                outputParameters[colMajIndex(i, j, columns-dataColumns)] = inputData[colMajIndex(i, j, columns)];   
+                outputParameters[colMajIndex(samples[i], j, columns-dataColumns)] = inputData[colMajIndex(samples[i], j, columns)];   
             }
             else{
                 //Copy the value to the data matrix
-                outputData[colMajIndex(i, j, dataColumns)] = inputData[colMajIndex(i, j, columns)];
+                outputData[colMajIndex(samples[i], j, dataColumns)] = inputData[colMajIndex(samples[i], j, columns)];
             }
         }
     }
@@ -208,8 +187,8 @@ KrigingError:
     free(tempMatrixTwo);
     
     return outputValue;
-}   
-    
+}
+
 double metamodelSetup(int dimension, double theta, double variance, double a, double* designSite, double* testSite, double* designSiteValues) {
     
     //Begin variable definitions for data to be passed to GPU
@@ -851,25 +830,19 @@ void printMatrix(double inArray[], int numRows, int numColumns) {
 }
 
 //Begin CUDA Function Implementations
-__global__ void calcDistance(double* outMat, double* inputOne, int inputOneRows, int inputOneCols, double* inMatTwo, int inputTwoRows, int inputTwoCols) {
+__global__ void calcDistance(double* outMat, double* inMat, int inRows, int inCols) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     int j = blockIdx.y * blockDim.y + threadIdx.y;
-    //Generate thread index based on input two's columns
-    int index = i + j * inputTwoCols;
-    //Calculate specific i and j parameters based on input two's rows/cols
-    i = index % inputTwoCols;
-    j = index / inputTwoCols;
-    //For all elements 
-    //If index falls outside 
-    outMat[index] = std::pow(inputOne[index] - inputTwo[index],2);
-    return;
-}
-
-__global__ void calcDistanceBetMatVec(double* outMat, double* inMat, double* inVec, int dimension) {
-    int i = blockIdx.x * blockDim.x + threadIdx.x;
-    int j = 0;
-    int index = i + j * dimension;
-    outMat[index] = std::pow(std::abs(inMat[index] - inVec[index]), 2);
+    //Generate thread index based on input columns
+    int index = i + j * inCols;
+    //Calculate specific i and j parameters based on input rows/cols
+    i = index % inCols;
+    j = index / inCols;
+    //For all columns in the input matrix, 
+    for(int k = 0; k < inRows){
+    	//Add the difference of the values to the output matrix
+        outMat[index] += std::pow(inMat[k + i*inCols] - inMat[k + j*inCols], 2);
+    }
     return;
 }
 
