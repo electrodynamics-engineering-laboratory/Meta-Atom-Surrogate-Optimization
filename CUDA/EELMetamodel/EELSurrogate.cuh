@@ -20,6 +20,9 @@
 #ifndef SURROGATE_H
 #define SURROGATE_H
 
+#define CUDA_GPU 0
+#define SAMPLE_RANDOM true
+
 //Needed to provide full path for CUDA functions on a Windows System. This should be changed for the local machine, unless Visual Studio is setup correctly.
 //CUDA libraries
 //#include "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.0\include\cuda_runtime.h"
@@ -119,18 +122,21 @@ Notes:       All matrices are in column-major format.
 double metamodelSetup(int dimension, double theta, double variance, double a, double* designSite, double* testSite, double* designSiteValues );
 
 /* @BEGIN_DOC_FUNC!
-Function:    kriging(std::string filename, int headerLines, int dataColumns, double theta, double variance, double nuggetEffect)
+Function:    kriging(double* data, double* testParameters, int rows, int columns, int dataColumns,  double sampleRatio, double theta, double variance, double nuggetEffect)
 Purpose:     Set up and perform calculations on the GPU that relate to a Kriging metamodel
-Inputs:      filename (std::string) - The file of data to be read and use for calculations.
-             headerLines (int) - The number of lines to skip in the top of the data file.
-             dataColumns (int) - The number of columns from the largest column index that will be used as data columns. 
+Inputs:      data (double*) - A pointer to an Mx(N+Q) matrix of data in column-major format.
+	     testParameters (double*) - A pointer to an 1xN matrix of parameters where the model will estimate a output values.
+             rows (int) - The number of rows in the data matrix.
+	     columns (int) - The number of columns in the data matrix.
+	     dataColumns (int) - The number of columns, from the largest column index, that contain results data.
+	     sampleRatio (double) - The ratio of data to use for samples.
              theta (double) - (THIS MIGHT BE AN INCORRECT DESCRIPTION) A value in radians that represents the angle between the two matrices, this value should only ever be real
              variance (double) - The value of the variance to use in calculations.
              nuggetEffect (double) - The nugget effect value to use in calculations.
 Outputs:     outputValue (double) - The estimator value that is calculated for the given target, design sites, and design site values.
-Notes:       None
+Notes:       For the data matrix of this function, M refers to the value of the rows variable, N refers to a value calculated by subtracting the columns and dataColumns variables, and Q refers to the dataColumns variable. 
 @END_DOC_FUNC! */
-double kriging(std::string filename, int headerLines, int dataColumns, double theta, double variance, double nuggetEffect);
+double* kriging(double* data, double* testParameters, int rows, int columns, int dataColumns, double sampleRatio, double theta, double variance, double nuggetEffect);
 
 /* @BEGIN_DOC_FUNC!
 Function:    calculateGaussianCorrelation(double* outputMatrix, double* inMatrix, double variance, double a, double theta, int dimension)

@@ -155,33 +155,121 @@ void parseRawData(double* outputParameters, double* outputData, double* inputDat
     return;
 }
 
-double kriging(std::string filename, int headerLines, int dataColumns, double theta, double variance, double nuggetEffect){
-    //Begin variable definitions for data to be passed to GPU
+double kriging(double* data, double* testParameters, int rows, int columns, int dataColumns, double sampleRatio, double theta, double variance, double nuggetEffect){
+    //Basic Variable Definitions
     cudaError_t cudaStatus = cudaSuccess;
-    int matrixMemoryAllocationSize = pow(dimension+1, 2);
-    int vectorMemoryAllocationSize = dimension+1;
     double outputValue = 0;
 
-    // Choose which GPU to run on, change this on a multi-GPU system.
-    cudaStatus = cudaSetDevice(0);
-    if (cudaStatus != cudaSuccess){
-        goto KrigingError;
-    }
-
+    //Calculate the data dimensions
+    int dimension = columns - dataColumns;
+    //Determine number of elements for matrices and vectors
+    int matrixMemoryAllocationSize = pow(dimension+1, 2);
+    int vectorMemoryAllocationSize = dimension+1;
+    
+    //Dynamically allocate memory for data and parameters matrices
+    double* paramMatrix = (double*) malloc((columns-dataColumns)*rows*sizeof(double));
+    double* dataMatrix = (double*) malloc(dataColumns*rows*sizeof(double));
+    
     //Create a dynamic allocation of memory for the identity matrix and populate with values
     double* identityMatrix = (double*) malloc(matrixMemoryAllocationSize * sizeof(double));
-    
+
+    //This allocation should be done on the GPU
     //Create a dynamic allocation of memory for a temporary holding matrix
-    double* tempMatrixOne = (double*) malloc(extendedMatrixMemoryAllocationSize * sizeof(double));
-    double* tempMatrixTwo = (double*) malloc(extendedMatrixMemoryAllocationSize * sizeof(double));
+    double* tempMatrixOne = (double*) malloc(matrixMemoryAllocationSize * sizeof(double));
+    double* tempMatrixTwo = (double*) malloc(matrixMemoryAllocationSize * sizeof(double));
     for (int i = 0; i < pow(dimension+1,2); i++) {
         tempMatrixOne[i] = 0;
         tempMatrixTwo[i] = 0;
         identityMatrix[i] = 0;
     }
 
+    //Generate samples array
+    int sampleCount = sampleRatio*rows;
+    int* sampleRows = generateSample(rows, sampleRatio, SAMPLE_RANDOM);
+
+    //Separate parameters and output data
+    parseRawData(paramMatrix, dataMatrix, data, rows, columns, dataColumns, sampleRows, sampleCount);
+
+    // Choose which GPU to run on, change this on a multi-GPU system.
+    cudaStatus = cudaSetDevice(CUDA_GPU);
+    if (cudaStatus != cudaSuccess){
+        goto KrigingError;
+    }
+    
+    //Create pointers for device matrices
+    double* deviceParamMatrix = 0;
+    double* deviceDesignMat = 0;
+    double* deviceTestVec = 0;
+    double* deviceIdenMat = 0;
+
+    //Allocate memory on device (GPU) to hold copy of the parameter matrix
+    cudaStatus = cudaMalloc((void**)&deviceParamMatrix,  sampleCount*columns*sizeof(double));
+    if (cudaStatus != cudaSuccess) {
+        goto CUDAError;
+    }
+    
+    //Allocate memory on device (GPU) to hold the calculated design matrix covariances
+    cudaStatus = cudaMalloc((void**)&deviceDesignMat, std::pow(columns+1, 2)*sizeof(double));
+    if (cudaStatus != cudaSuccess){
+        goto CUDAError;
+    }
+    
+    //Allocate memory on device (GPU) to hold the calculated test vector covariances
+    cudaStatus = cudaMalloc((void**)&deviceTestVec, (columns+1)*sizeof(double));
+    if (cudaStatus != cudaSuccess){
+        goto CUDAError;
+    }
+    
+    //Allocate memory on device (GPU) to hold the identity matrix necessary for inversion
+    cudaStatus = cudaMalloc((void**)&deviceIdenMat, std::pow(columns+1, 2)*sizeof(double));
+    if (cudaStatus != cudaSuccess){
+        goto CUDAError;
+    }
+    
+    //Copy data to device (GPU) from host (CPU)
+    cudaStatus = cudaMemcpy(deviceParamMatrix, paramMatrix, sampleCount*columns*sizeof(double), cudaMemcpyHostToDevice);
+    if(cudaStatus != cudaSuccess){
+        goto CUDAError;
+    }
+    
+    //Calculate the distances between design parameters
+    calcDistance <<< columns, columns >>> (deviceDesignMat, deviceParamMatrix, sampleCount, columns);
+    cudaStatus = cudaGetLastError();
+    if( cudaStatus != cudaSuccess){
+        goto CUDAError;
+    }
+
+    //Calculate distances between test parameters and design parameters
+    calcDistance <<< columns, 1 >>> (deviceTestVec, deviceParamMatrix, sampleCount, columns);
+    //Calculate covariance among design parameters
+
+    //Caclulate covariance among test parameters
+
+    //Invert design parameters covariance matrix
+
+    //Calculate extended weights vector
+
+    //Calculate estimates for all data columns
+    
+
+CUDAError:
+    if(deviceParamMatrix != 0){
+        cudaFree(deviceParamMatrix);
+    }
+    if(deviceDesignMat != 0){
+        cudaFree(deviceDesignMat);
+    }
+    if(deviceTestVec != 0){
+        cudaFree(deviceTestVec);
+    }
+    if(deviceIdenMat != 0){
+        cudaFree(deviceIdenMat);
+    }
+
 KrigingError:
-   
+
+    free(paramMatrix);
+    free(dataMatrix);
     free(identityMatrix);
     free(tempMatrixOne);
     free(tempMatrixTwo);
